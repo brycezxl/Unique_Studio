@@ -1,6 +1,3 @@
 # Unique_Studio
 
-For Unique Studio projects.
-{:.info}
-
-没啥好看的
+    For Unique Studio projects.
