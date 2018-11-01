@@ -7,7 +7,6 @@ from sklearn.feature_extraction import DictVectorizer
 EPOCH = 3000
 LAMBDA = 0
 AlPHA = 0.01
-FOLD = 10
 ITER = 10
 
 
@@ -149,29 +148,27 @@ def acc_cross():
             predict_copy2[j] = 0
         else:
             predict_copy2[j] = 1
-        if predict_copy2[j] == label_fold[j]:
+        if predict_copy2[j] == label_boot[j]:
             count = count + 1
 
     accu = count / logistic_regression.rows * 100
     return accu
 
 
-# 10次10折交叉验证法
+# 自助法
 x, y = load_train()
-in_fold = (np.size(x, axis=0) - (np.size(x, axis=0) % FOLD)) / FOLD
 acc_add = 0
 
 for i in range(ITER):
 
-    # 取出一折
-    test_fold = np.zeros((FOLD, np.size(x, axis=1)))
-    label_fold = np.zeros((FOLD, 1))
-    for k in range(FOLD):
-        random_int = np.random.randint(low=0, high=(np.size(x, axis=0) - 1 - k))
-        label_fold[k] = y[random_int]
-        test_fold[k] = x[random_int, :]
-        x = np.delete(x, random_int, axis=0)
-        y = np.delete(y, random_int, axis=0)
+    data_boot = np.zeros_like(x)
+    label_boot = np.zeros_like(y)
+
+    # 随机取出
+    for k in range(np.size(x, axis=0)):
+        random_int = np.random.randint(low=0, high=(np.size(x, axis=0) - 1))
+        label_boot[k] = y[random_int]
+        data_boot[k] = x[random_int, :]
 
     # train
     logistic_regression = LogisticRegression(x, y)
@@ -182,10 +179,10 @@ for i in range(ITER):
         logistic_regression.cost_function()
         logistic_regression.back()
 
-    logistic_regression_test = LogisticRegression(test_fold, label_fold)
+    logistic_regression_test = LogisticRegression(data_boot, label_boot)
     logistic_regression_test.normalize()
     logistic_regression_test.forward()
     accu_out = acc_cross()
     acc_add = acc_add + accu_out
 
-print("ACC: %.2f%%" % (acc_add / ITER * 100))
+print("ACC: %.2f%%" % (acc_add / ITER))
