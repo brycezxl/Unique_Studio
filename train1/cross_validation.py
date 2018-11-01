@@ -293,7 +293,7 @@ for i in range(ITER):
     accu_out = acc_cross()
     acc_add = acc_add + accu_out
 
-print("ACC: %.2f" % (acc_add / ITER))
+print("ACC: %.2f%%" % (acc_add / ITER * 100))
 
 # test
 # x_test, y_test = load_test()

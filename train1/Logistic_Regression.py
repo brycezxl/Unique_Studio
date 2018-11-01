@@ -1,11 +1,12 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
+from tqdm import tqdm
 from sklearn.feature_extraction import DictVectorizer
 
 
 # 超参
-EPOCH = 1000
+EPOCH = 3000
 LAMBDA = 0
 AlPHA = 0.01
 
@@ -222,17 +223,17 @@ def precision_recall_f1_roc_auc(beta=1):
     tpr = tp / (tp + fn)
     fpr = fp / (tn + fp)
     plt.subplot(122)
-    plt.xlabel('TPR')
-    plt.ylabel('FPR')
+    plt.xlabel('FPR')
+    plt.ylabel('TPR')
     plt.title('ROC')
-    plt.scatter(tpr, fpr)
+    plt.scatter(fpr, tpr)
     plt.show()
 
     # AUC(ROC的面积）
     auc = 0
     for f in range(logistic_regression_test.rows - 1):
         auc = auc + 1 / 2 * (tpr[f + 1] - tpr[f]) * (fpr[f] + fpr[f + 1])
-    print("AUC:            %.2f" % auc)
+    print("AUC:            %.2f" % (1 - auc))
 
     return 0
 
@@ -241,10 +242,17 @@ def precision_recall_f1_roc_auc(beta=1):
 x, y = load_train()
 logistic_regression = LogisticRegression(x, y)
 logistic_regression.normalize()
+
+pbar = tqdm(total=EPOCH)
+
 for epoch in range(EPOCH):
     logistic_regression.forward()
     logistic_regression.cost_function()
     logistic_regression.back()
+    if epoch % 50 == 0:
+        pbar.update(50)
+
+pbar.close()
 logistic_regression.plot_j()
 print("Minimized cost: %.5f" % logistic_regression.j)
 

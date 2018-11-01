@@ -5,6 +5,7 @@ import numpy as np
 import matplotlib.pyplot as pltdef
 import pandas as pd
 from sklearn.feature_extraction import DictVectorizer
+import tqdm
 
 
 def load(kind='train'):
