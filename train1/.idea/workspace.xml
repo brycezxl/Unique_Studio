@@ -3,7 +3,6 @@
   <component name="ChangeListManager">
     <list default="true" id="727156b5-ceb3-4a01-87ed-b41cb4cf277d" name="Default Changelist" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Logistic_Regression.py" beforeDir="false" afterPath="$PROJECT_DIR$/Logistic_Regression.py" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -58,12 +57,12 @@
     <session id="-1504819206">
       <usages-collector id="statistics.lifecycle.project">
         <counts>
-          <entry key="project.closed" value="11" />
+          <entry key="project.closed" value="12" />
           <entry key="project.open.time.3" value="1" />
-          <entry key="project.open.time.5" value="4" />
+          <entry key="project.open.time.5" value="5" />
           <entry key="project.open.time.6" value="7" />
           <entry key="project.open.time.7" value="1" />
-          <entry key="project.opened" value="13" />
+          <entry key="project.opened" value="14" />
         </counts>
       </usages-collector>
       <usages-collector id="statistics.file.extensions.open">
@@ -97,7 +96,7 @@
         <entry file="file://$PROJECT_DIR$/boosting.py">
           <provider selected="true" editor-type-id="text-editor">
             <state relative-caret-position="157">
-              <caret line="129" lean-forward="true" selection-start-line="129" selection-end-line="129" />
+              <caret line="129" selection-start-line="129" selection-end-line="129" />
               <folding>
                 <element signature="e#0#18#0" expanded="true" />
                 <element signature="e#148#158#0" />
@@ -113,11 +112,10 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/Logistic_Regression.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="-10">
-              <caret line="111" column="16" lean-forward="true" selection-start-line="111" selection-start-column="16" selection-end-line="111" selection-end-column="16" />
+            <state relative-caret-position="2782">
+              <caret line="111" column="16" selection-start-line="111" selection-start-column="16" selection-end-line="111" selection-end-column="16" />
               <folding>
                 <element signature="e#0#18#0" expanded="true" />
-                <element signature="e#4161#6699#0" />
                 <marker date="1541235307402" expanded="true" signature="6763:6765" ph="..." />
               </folding>
             </state>
@@ -364,11 +362,10 @@
   </component>
   <component name="ToolWindowManager">
     <frame x="0" y="0" width="1920" height="1080" extended-state="6" />
-    <editor active="true" />
     <layout>
-      <window_info content_ui="combo" id="Project" order="0" sideWeight="0.49944752" visible="true" weight="0.21030043" />
+      <window_info content_ui="combo" id="Project" order="0" sideWeight="0.49944752" visible="true" weight="0.21298283" />
       <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
-      <window_info id="Favorites" order="2" sideWeight="0.5005525" side_tool="true" visible="true" weight="0.21030043" />
+      <window_info id="Favorites" order="2" sideWeight="0.5005525" side_tool="true" weight="0.21030043" />
       <window_info anchor="bottom" id="Message" order="0" />
       <window_info anchor="bottom" id="Find" order="1" />
       <window_info anchor="bottom" id="Run" order="2" sideWeight="0.49946353" weight="0.3116022" />
@@ -505,13 +502,27 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/Logistic_Regression.py">
+    <entry file="file://$PROJECT_DIR$/boosting.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-10">
-          <caret line="111" column="16" lean-forward="true" selection-start-line="111" selection-start-column="16" selection-end-line="111" selection-end-column="16" />
+        <state relative-caret-position="157">
+          <caret line="129" selection-start-line="129" selection-end-line="129" />
           <folding>
             <element signature="e#0#18#0" expanded="true" />
-            <element signature="e#4161#6699#0" />
+            <element signature="e#148#158#0" />
+            <element signature="e#215#613#0" />
+            <element signature="e#637#1281#0" />
+            <element signature="e#1322#3426#0" />
+            <element signature="e#3444#3927#0" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Logistic_Regression.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="2782">
+          <caret line="111" column="16" selection-start-line="111" selection-start-column="16" selection-end-line="111" selection-end-column="16" />
+          <folding>
+            <element signature="e#0#18#0" expanded="true" />
             <marker date="1541235307402" expanded="true" signature="6763:6765" ph="..." />
           </folding>
         </state>
@@ -521,21 +532,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="52">
           <caret line="2" column="8" selection-start-line="2" selection-start-column="8" selection-end-line="2" selection-end-column="8" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/boosting.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="157">
-          <caret line="129" lean-forward="true" selection-start-line="129" selection-end-line="129" />
-          <folding>
-            <element signature="e#0#18#0" expanded="true" />
-            <element signature="e#148#158#0" />
-            <element signature="e#215#613#0" />
-            <element signature="e#637#1281#0" />
-            <element signature="e#1322#3426#0" />
-            <element signature="e#3444#3927#0" />
-          </folding>
         </state>
       </provider>
     </entry>
