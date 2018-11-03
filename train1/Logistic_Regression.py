@@ -126,7 +126,7 @@ class LogisticRegression(object):
 
     def plot_j(self):
         """Visualize the decline of j"""
-        plt.scatter(range(EPOCH), self.j_list, linewidths=0.01, c="r")
+        plt.plot(range(EPOCH), self.j_list, c="r")
         plt.show()
         return 0
 
@@ -197,7 +197,7 @@ def precision_recall_f1_roc_auc(beta=1):
     plt.xlabel('P')
     plt.ylabel('R')
     plt.title('P-R')
-    plt.scatter(p, r)
+    plt.plot(p, r)
 
     # F_beta度量(根据beta比较学习器，重视较小值)
     f_beta = ((1 + beta ** 2) * r * p) / (beta ** 2 * p + r)
@@ -226,7 +226,7 @@ def precision_recall_f1_roc_auc(beta=1):
     plt.xlabel('FPR')
     plt.ylabel('TPR')
     plt.title('ROC')
-    plt.scatter(fpr, tpr)
+    plt.plot(fpr, tpr)
     plt.show()
 
     # AUC(ROC的面积）
