@@ -6,18 +6,20 @@ from sklearn.feature_extraction import DictVectorizer
 
 
 # 超参
-EPOCH = 2000
+EPOCH = 6000
 LAMBDA = 0
 AlPHA = 0.01
 SCALE = 0.5
 
 
-def load_train():
-    """Load titanic train data and process into vectorized martix.
+def leave_out():
+    """Divide data into 70% for train and 30% for test.
 
     Returns:
         x_get: matrix, data
         y_get: matrix, label
+        x_get_train: matrix, data
+        y_get_train: matrix, label
 
     """
     data_frame = pd.read_csv('./titanic/train.csv')
@@ -35,9 +37,12 @@ def load_train():
     dvec = DictVectorizer(sparse=False)
     data_get = dvec.fit_transform(data_frame.to_dict(orient='record'))
 
-    x_get = data_get[:, :-2]
-    y_get = data_get[:, -1]
-    return x_get, y_get
+    leave_num = int((np.size(data_get, axis=0) - (np.size(data_get, axis=0) % 10)) / 10 * 7)
+    x_get = data_get[:leave_num, :-2]
+    y_get = data_get[:leave_num, -1]
+    x_test_get = data_get[(leave_num + 1):, :-2]
+    y_test_get = data_get[(leave_num + 1):, -1]
+    return x_get, y_get, x_test_get, y_test_get
 
 
 def load_test():
@@ -79,8 +84,8 @@ class LogisticRegression(object):
     Attribute:
         __params: parameters
         __count: decide when to initialize params
-    """
 
+    """
     def __init__(self):
         self.__params = 0
         self.__count = 0
@@ -109,7 +114,6 @@ class LogisticRegression(object):
 
     def __cost_function(self, y_get, y_in, j_list_in):
         """calculate cost j for visualization"""
-
         j = -1 / np.size(y_get, axis=0) * (np.sum((y_in * np.log(y_get)), axis=0)
                                            + np.sum(((1 - y_in) * np.log(1 - y_get)), axis=0))
         j_list_in.append(j)
@@ -117,7 +121,6 @@ class LogisticRegression(object):
 
     def __back(self, x_in, y_get, y_in):
         """do backprop to adjust params"""
-
         grad = AlPHA / np.size(x_in, axis=0) * np.dot(x_in.T, (y_get - y_in))
         params = self.__get_params()
         params = params - grad
@@ -126,14 +129,12 @@ class LogisticRegression(object):
 
     def __plot_j(self, j_list_in):
         """Visualize the change of j"""
-
         plt.plot(range(EPOCH), j_list_in, c="r")
         plt.show()
         return 0
 
     def __forward(self, x_forward):
         """forward prop with sigmoid"""
-
         y_predict = 1 / (1 + np.exp(-np.dot(x_forward, self.__get_params())))
         return y_predict
 
@@ -163,7 +164,6 @@ class LogisticRegression(object):
 
     def predict(self, x_pre):
         """Predict class labels for samples in X."""
-
         # y_pre is useless here
         x_pre, y_pre = self.__normalize(x_pre, np.ones((np.size(x_pre, axis=0), 1)))
 
@@ -180,13 +180,11 @@ class LogisticRegression(object):
 
     def __get_params(self):
         """Get parameters for this estimator."""
-
         params = self.__params
         return params
 
     def __set_params(self, params_in):
         """Set parameters for this estimator."""
-
         self.__params = params_in
         return 0
 
@@ -212,8 +210,7 @@ class LogisticRegression(object):
         return 0
 
 
-x, y = load_train()
-x_test, y_test = load_test()
+x, y, x_test, y_test = leave_out()
 clf = LogisticRegression().fit(x, y)
 clf.score(x_test, y_test)
 
