@@ -1,4 +1,4 @@
 *.csv
 /train1/.idea
 /train1/titanic
-/train1/test
+/train1/test.py
