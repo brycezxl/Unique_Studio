@@ -38,7 +38,8 @@ class Particle:
 
 
 class PSO:
-    def __init__(self, size, iter_num, dim=5, x_max=5.12, max_vel=0.5, best_fitness_value=float('Inf'), c1=2, c2=2, w=0.4):
+    def __init__(self, size, iter_num, dim=5, x_max=5.12, max_vel=0.5,
+                 best_fitness_value=float('Inf'), c1=2, c2=2, w=0.4):
         self.C1 = c1
         self.C2 = c2
         self.W = w                                      # 加权
@@ -119,7 +120,7 @@ class PSO:
         result_list = []
         for i in self.get_best_position():
             result_list.append(float(i))
-        print("最佳x值为:", result_list)
+        print("最佳x值为  :", result_list)
 
 
 def pso(size_in, iter_num_in, max_vel_in, w_in, test_times):

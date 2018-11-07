@@ -6,7 +6,7 @@ from sklearn.feature_extraction import DictVectorizer
 
 
 # 超参
-EPOCH = 6000
+EPOCH = 4000
 LAMBDA = 0
 AlPHA = 0.01
 SCALE = 0.5
@@ -43,35 +43,6 @@ def leave_out():
     x_test_get = data_get[(leave_num + 1):, :-2]
     y_test_get = data_get[(leave_num + 1):, -1]
     return x_get, y_get, x_test_get, y_test_get
-
-
-def load_test():
-    """Load titanic test data and process into vectorized martix.
-
-    Returns:
-        x_get: matrix, data
-        y_get: matrix, label
-
-    """
-    x_frame = pd.read_csv('./titanic/test.csv')
-    y_frame = pd.read_csv('./titanic/gender_submission.csv')
-
-    # 填补空缺值
-    x_frame = x_frame.fillna(method='ffill')  # 待改进
-
-    # 删除不必要特征
-    del x_frame['PassengerId']
-    del x_frame['Cabin']
-    del x_frame['Name']
-    del x_frame['Ticket']
-
-    # 特征向量化
-    dvec = DictVectorizer(sparse=False)
-    data_get = dvec.fit_transform(x_frame.to_dict(orient='record'))
-    x_get = data_get[:, :-1]
-    y_get = y_frame.values[:, 1]
-
-    return x_get, y_get
 
 
 class LogisticRegression(object):
@@ -154,7 +125,7 @@ class LogisticRegression(object):
             self.__back(x_in, y_get, y_in)
             if epoch % 50 == 0:
                 # pbar.update(50)
-                print("EPOCH: ", epoch, " | Cost: ", j_list[-1])
+                print("EPOCH: %4d" % epoch, " | Cost: ", j_list[-1])
         # pbar.close()
 
         # plot
@@ -210,9 +181,10 @@ class LogisticRegression(object):
         return 0
 
 
-x, y, x_test, y_test = leave_out()
-clf = LogisticRegression().fit(x, y)
-clf.score(x_test, y_test)
+if __name__ == "__main__":
+    x, y, x_test, y_test = leave_out()
+    clf = LogisticRegression().fit(x, y)
+    clf.score(x_test, y_test)
 
 # def precision_recall_f1_roc_auc(beta=1):
 #     """计算查准率与查全率并图示，打印f-beta度量、宏f1，微f1, ROC, AUC
@@ -293,4 +265,3 @@ clf.score(x_test, y_test)
 #     print("AUC:            %.2f" % (1 - auc))
 #
 #     return 0
-
