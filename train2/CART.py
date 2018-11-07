@@ -46,17 +46,15 @@ class CartDecisionTree(object):
     Attributes:
         value: chosen split value
         truebranch, falsebranch: binary branches which the data are divided into each time
-        kind: kinds of data in the chosen column
         col: the chosen column
         summary: details of each point
         current_gain: gini of data before split
 
     """
-    def __init__(self, value=None, truebranch=None, falsebranch=None, kind=None, col=-1, summary=None, result=None):
+    def __init__(self, value=None, truebranch=None, falsebranch=None, col=-1, summary=None, result=None):
         self.value = value
         self.truebranch = truebranch
         self.falsebranch = falsebranch
-        self.kind = kind
         self.col = col
         self.summary = summary
         self.current_gain = 0
@@ -78,11 +76,11 @@ class CartDecisionTree(object):
         clf1 = self.__type_count(data_build, -1)
         for c in clf1:
             if clf1[c] == np.size(data_build, axis=0):
-                return CartDecisionTree(kind=c, summary=dic, result=data_build)
+                return CartDecisionTree(result=c, summary=dic)
 
         # 遍历完所有的特征
         if self.__feature_end(data_build):
-            return CartDecisionTree(kind=self.__major_feature(data_build), summary=dic, result=data_build)
+            return CartDecisionTree(result=self.__major_feature(data_build), summary=dic)
 
         # get best gain and split data
         best_col, best_val, best_gain = self.__choose_best_gain(data_build)
@@ -98,7 +96,7 @@ class CartDecisionTree(object):
             return CartDecisionTree(col=best_col, value=best_val, truebranch=true_branch, falsebranch=false_branch,
                                     summary=dic)
         else:
-            return CartDecisionTree(kind=self.__type_count(data_build, -1), summary=dic, result=data_build)
+            return CartDecisionTree(result=self.__type_count(data_build, -1), summary=dic)
 
     def __feature_end(self, data_in):
         type_counter = 1
@@ -136,7 +134,18 @@ class CartDecisionTree(object):
         return gain
 
     def score(self, x_in, y_in):
-        pass
+        y_get = np.zeros((np.size(x_in, axis=0), 1))
+        for i in range(np.size(x_in, axis=0)):
+            y_get[i] = self.__classify(x_in[i, :], iter_self=self)
+
+        count = 0
+        # turn into 0/1, then judge
+        for j in range(np.size(y_in, axis=0)):
+            if y_get[j] == y_in[j]:
+                count = count + 1
+        accuracy = count / np.size(y_in, axis=0) * 100
+        print("ACC:  %.4f%%" % (accuracy * 100))
+        return 0
 
     def __gini(self, x_gini):
         """计算gini增量."""
@@ -216,6 +225,24 @@ class CartDecisionTree(object):
             if dic_get[kind] > major:
                 major = dic_get[kind]
         return major
+
+    def __classify(self, x_rol, iter_self):
+
+        if iter_self.result:
+            return iter_self.result
+        else:
+            val = x_rol[iter_self.col]
+            if isinstance(val, int) or isinstance(val, float):
+                if val >= iter_self.value:
+                    branch = iter_self.truebranch
+                else:
+                    branch = iter_self.falsebranch
+            else:
+                if val == iter_self.value:
+                    branch = iter_self.truebranch
+                else:
+                    branch = iter_self.falsebranch
+            return self.__classify(iter_self=branch, x_rol=x_rol)
 
 
 if __name__ == "__main__":
