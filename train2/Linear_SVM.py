@@ -45,7 +45,7 @@ def leave_out():
     return x_get, y_get, x_test_get, y_test_get
 
 
-class LogisticRegression(object):
+class LinearSVM(object):
     """Do logistic regression.
 
     Methods:　fit     -- Train the model with given x and y,
@@ -199,5 +199,5 @@ class LogisticRegression(object):
 
 if __name__ == "__main__":
     x, y, x_test, y_test = leave_out()
-    clf = LogisticRegression().fit(x, y)
+    clf = LinearSVM().fit(x, y)
     clf.score(x_test, y_test)
