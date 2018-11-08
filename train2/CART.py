@@ -51,7 +51,7 @@ class CartDecisionTree(object):
         current_gain: gini of data before split
 
     """
-    def __init__(self, value=None, truebranch=None, falsebranch=None, col=-1, summary=None, result=None):
+    def __init__(self, value=None, truebranch=None, falsebranch=None, col=-1, summary=None, result=None, data=None):
         self.value = value
         self.truebranch = truebranch
         self.falsebranch = falsebranch
@@ -60,6 +60,8 @@ class CartDecisionTree(object):
         self.current_gain = 0
         self.result = result
         self.ban_list = []
+        self.prune = 0
+        self.data = data
 
     def fit(self, x_in, y_in):
         """build the tree by x_in and y_in"""
@@ -76,27 +78,31 @@ class CartDecisionTree(object):
         clf1 = self.__type_count(data_build, -1)
         for c in clf1:
             if clf1[c] == np.size(data_build, axis=0):
-                return CartDecisionTree(result=c, summary=dic)
+                return CartDecisionTree(result=c, summary=dic, data=data_build)
 
         # 遍历完所有的特征
         if self.__feature_end(data_build):
-            return CartDecisionTree(result=self.__major_feature(data_build), summary=dic)
+            return CartDecisionTree(result=self.__major_feature(data_build), summary=dic, data=data_build)
 
         # get best gain and split data
         best_col, best_val, best_gain = self.__choose_best_gain(data_build)
         data1, data2 = self.__split_data(data_build, best_val, best_col)
+        if isinstance(data1, int):          # 空集则结束
+            return CartDecisionTree(result=self.__major_feature(data2), summary=dic, data=data_build)
+        elif isinstance(data2, int):
+            return CartDecisionTree(result=self.__major_feature(data1), summary=dic, data=data_build)
 
         # 一个特征取一次
-        self.ban_list.append(best_col)
+        # self.ban_list.append(best_col)
 
         # stop or not
         if best_gain > 0:
             true_branch = self.__build_tree(data1)
             false_branch = self.__build_tree(data2)
             return CartDecisionTree(col=best_col, value=best_val, truebranch=true_branch, falsebranch=false_branch,
-                                    summary=dic)
+                                    summary=dic, data=data_build)
         else:
-            return CartDecisionTree(result=self.__type_count(data_build, -1), summary=dic)
+            return CartDecisionTree(result=self.__type_count(data_build, -1), summary=dic, data=data_build)
 
     def __feature_end(self, data_in):
         type_counter = 1
@@ -112,9 +118,7 @@ class CartDecisionTree(object):
         best_gain_in = 0
         best_val_in = None
         best_col_in = None
-        for i in range(np.size(data_to_choose, axis=1) - 1):
-            if i in self.ban_list:
-                continue
+        for i in range(np.size(data_to_choose, axis=1) - 1):    # 每一列
             kinds = self.__type_count(data_to_choose, i)
             for kind in kinds:
                 data_get1, data_get2 = self.__split_data(data_to_choose, kind, i)
@@ -134,9 +138,18 @@ class CartDecisionTree(object):
         return gain
 
     def score(self, x_in, y_in):
+
+        y_in = np.reshape(y_in, (np.size(y_in, axis=0), 1))
+        data_total = np.hstack((x_in, y_in))
+
+        # 一次剪枝
+        self.prune += 1
+        if self.prune == 1:
+            self.__prune(iter_self=self)
+
         y_get = np.zeros((np.size(x_in, axis=0), 1))
         for i in range(np.size(x_in, axis=0)):
-            y_get[i] = self.__classify(x_in[i, :], iter_self=self)
+            y_get[i] = self.__classify(data_total[i, :], iter_self=self)
 
         count = 0
         # turn into 0/1, then judge
@@ -144,7 +157,7 @@ class CartDecisionTree(object):
             if y_get[j] == y_in[j]:
                 count = count + 1
         accuracy = count / np.size(y_in, axis=0) * 100
-        print("ACC:  %.4f%%" % (accuracy * 100))
+        print("ACC:  %.4f%%" % accuracy)
         return 0
 
     def __gini(self, x_gini):
@@ -200,11 +213,16 @@ class CartDecisionTree(object):
         if np.shape(split1) == (10, ):
             split1 = split1.reshape((1, 10))
         if np.shape(split2) == (10, ):
-            split1 = split2.reshape((1, 10))
+            split2 = split2.reshape((1, 10))
         return split1, split2
 
     def __type_count(self, data_split, col):
-        """将每个特征与特征出现次数转为字典"""
+        """将每个特征与特征出现次数转为字典
+
+        Parameters:
+            data_split: 总数据
+            col: 目标列（一般为-1）
+        """
         if np.shape(data_split) == (10, ):
             data_split = data_split.reshape((1, 10))
         clf_data = {}
@@ -215,8 +233,31 @@ class CartDecisionTree(object):
                 clf_data[data_split[i, col]] += 1
         return clf_data
 
-    def __prune(self):
-        pass
+    def __prune(self, iter_self):
+        # 没到尽头
+        try:
+            a = iter_self.truebranch.result
+        except AttributeError:
+            self.__prune(iter_self.truebranch)
+        try:
+            a = iter_self.falsebranch.result
+        except AttributeError:
+            self.__prune(iter_self.falsebranch)
+
+        # 最后的节点
+        if (not iter_self.truebranch.result) and (not iter_self.truebranch.result):
+            row1 = np.size(iter_self.truebranch.data, axis=0)
+            row2 = np.size(iter_self.falsebranch.data, axis=0)
+            p = row1 / (row1 + row2)
+            data_all = np.vstack((iter_self.truebranch.data, iter_self.falsebranch.data))
+            gain = self.__gini(data_all) - p * self.__gini(iter_self.truebranch.data) - (1 - p) * \
+                self.__gini(iter_self.falsebranch.data)
+            if gain < 0.1:
+                iter_self.data = data_all
+                iter_self.results = self.__major_feature(iter_self.data)
+                iter_self.trueBranch = None
+                iter_self.falseBranch = None
+        return 0
 
     def __major_feature(self, data_in):
         dic_get = self.__type_count(data_in, -1)
@@ -228,21 +269,22 @@ class CartDecisionTree(object):
 
     def __classify(self, x_rol, iter_self):
 
-        if iter_self.result:
+        if not iter_self.value:
             return iter_self.result
-        else:
-            val = x_rol[iter_self.col]
-            if isinstance(val, int) or isinstance(val, float):
-                if val >= iter_self.value:
-                    branch = iter_self.truebranch
-                else:
-                    branch = iter_self.falsebranch
+        val = x_rol[iter_self.col]
+        if not iter_self.value:
+            return iter_self.result
+        if isinstance(val, int) or isinstance(val, float):
+            if val >= iter_self.value:
+                branch = iter_self.truebranch
             else:
-                if val == iter_self.value:
-                    branch = iter_self.truebranch
-                else:
                     branch = iter_self.falsebranch
-            return self.__classify(iter_self=branch, x_rol=x_rol)
+        else:
+            if val == iter_self.value:
+                branch = iter_self.truebranch
+            else:
+                branch = iter_self.falsebranch
+        return self.__classify(iter_self=branch, x_rol=x_rol)
 
 
 if __name__ == "__main__":
