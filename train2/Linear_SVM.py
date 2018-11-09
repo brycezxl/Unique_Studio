@@ -1,8 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
-# from tqdm import tqdm
 from sklearn.feature_extraction import DictVectorizer
+# from tqdm import tqdm
 
 
 # 超参
@@ -114,6 +114,17 @@ class LinearSVM(object):
         accuracy = count / np.size(y_score, axis=0) * 100
         print("acc:            %.4f%%" % accuracy)
         return 0
+
+    def predict(self, x_pre, y_pre):
+        x_score, y_score = self.__normalize(x_pre, y_pre)
+        y_pred = np.dot(x_score, self.__get_params())
+
+        for j in range(np.size(y_score, axis=0)):
+            if y_pred[j] >= SCALE:
+                y_pred[j] = 1
+            else:
+                y_pred[j] = 0
+        return y_pred
 
     def __normalize(self, x_norm, y_norm):
         """process raw data"""

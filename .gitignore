@@ -24,3 +24,4 @@ titanic
 data
 test.py
 *.png
+__pycache__
