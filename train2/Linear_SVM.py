@@ -91,6 +91,9 @@ class LinearSVM(object):
 
         # plot
         self.__plot_j(j_list)
+        for j in range(np.size(y_in, axis=0)):
+            if y_in[j] == -1:
+                y_in[j] = 0
         print("Minimized cost: %.5f" % j_list[-1])
         return self
 

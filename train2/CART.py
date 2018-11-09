@@ -346,5 +346,4 @@ class CartDecisionTree(object):
 if __name__ == "__main__":
     x, y, x_test, y_test = leave_out()
     clf = CartDecisionTree().fit(x, y)
-    # clf.score(x_test, y_test)
-    clf.predict(x_test, y_test)
+    clf.score(x_test, y_test)
