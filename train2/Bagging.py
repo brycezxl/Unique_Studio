@@ -1,5 +1,4 @@
 import numpy as np
-import matplotlib.pyplot as plt
 import pandas as pd
 from sklearn.feature_extraction import DictVectorizer
 
@@ -42,7 +41,10 @@ def leave_out():
     return x_get, y_get, x_test_get, y_test_get
 
 
-def __bagging(x_in, y_in, x_test_in, y_test_in):
+def bagging(x_in, y_in, x_test_in, y_test_in):
+    """改变权重,训练多个分类器,投票"""
+
+    # 先预测
     clf1 = LogisticRegression().fit(x_in, y_in)
     predict1 = clf1.predict(x_test_in, y_test_in)
     clf2 = LinearSVM().fit(x_in, y_in)
@@ -50,6 +52,7 @@ def __bagging(x_in, y_in, x_test_in, y_test_in):
     clf3 = CartDecisionTree().fit(x_in, y_in)
     predict3 = clf3.predict(x_test_in, y_test_in)
 
+    # 收集投票
     predict = np.zeros_like(predict1)
     count = 0
     for i in range(np.size(y_test_in, axis=0)):
@@ -68,7 +71,7 @@ def __bagging(x_in, y_in, x_test_in, y_test_in):
 
 if __name__ == "__main__":
     x, y, x_test, y_test = leave_out()
-    __bagging(x, y, x_test, y_test)
+    bagging(x, y, x_test, y_test)
 
 
 

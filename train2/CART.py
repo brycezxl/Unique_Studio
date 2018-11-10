@@ -40,8 +40,9 @@ class CartDecisionTree(object):
     """Cart Decision Tree.
 
     Methods:
-        fit   -- build the tree with given data
-        score -- return the acc predicted by the tree
+        fit     -- build the tree with given data
+        score   -- return the acc predicted by the tree
+        predict -- return label
 
     Attributes:
         value: chosen split value
@@ -49,6 +50,9 @@ class CartDecisionTree(object):
         col: the chosen column
         summary: details of each point
         current_gain: gini of data before split
+        data: store data
+        result: store labels
+        prune: if prune == 1:剪枝 每次+1
 
     """
     def __init__(self, value=None, truebranch=None, falsebranch=None, col=-1, summary=None, result=None, data=None):
@@ -59,7 +63,6 @@ class CartDecisionTree(object):
         self.summary = summary
         self.current_gain = 0
         self.result = result
-        self.ban_list = []
         self.prune = 0
         self.data = data
 

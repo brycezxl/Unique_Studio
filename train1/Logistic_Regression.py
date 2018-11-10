@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 # from tqdm import tqdm
+from sklearn.datasets import load_wine
 from sklearn.feature_extraction import DictVectorizer
 
 
@@ -182,6 +183,7 @@ class LogisticRegression(object):
 
 
 if __name__ == "__main__":
+    # data = load_wine(return_X_y=True)
     x, y, x_test, y_test = leave_out()
     clf = LogisticRegression().fit(x, y)
     clf.score(x_test, y_test)
