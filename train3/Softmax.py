@@ -1,7 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
-# from tqdm import tqdm
 from sklearn.feature_extraction import DictVectorizer
 
 
@@ -58,7 +57,7 @@ class LogisticRegression(object):
 
     """
     def __init__(self):
-        self.__params = 0
+        self.__params = []
         self.__count = 0
 
     def __normalize(self, x_norm, y_norm):
@@ -71,7 +70,8 @@ class LogisticRegression(object):
 
         # initialize params
         if self.__count == 1:
-            self.__set_params(np.random.random((np.size(x_norm, axis=1), 1)))
+            for i in range(self.__label_count(y_norm)):
+                self.__params.append(np.random.random((np.size(x_norm, axis=1), 1)))
 
         # normalization
         average = np.mean(x_norm, axis=0)
@@ -90,12 +90,12 @@ class LogisticRegression(object):
         j_list_in.append(j)
         return j_list_in
 
-    def __back(self, x_in, y_get, y_in):
+    def __back(self, x_in, y_get, y_in, label_in):
         """do backprop to adjust params"""
         grad = AlPHA / np.size(x_in, axis=0) * np.dot(x_in.T, (y_get - y_in))
-        params = self.__get_params()
+        params = self.__params[label_in]
         params = params - grad
-        self.__set_params(params)
+        self.__params[label_in] = params
         return 0
 
     def __plot_j(self, j_list_in):
@@ -104,14 +104,13 @@ class LogisticRegression(object):
         plt.show()
         return 0
 
-    def __forward(self, x_forward):
+    def __forward(self, x_forward, label_in):
         """forward prop with sigmoid"""
-        y_predict = 1 / (1 + np.exp(-np.dot(x_forward, self.__get_params())))
+        y_predict = 1 / (1 + np.exp(-np.dot(x_forward, self.__params[label_in])))
         return y_predict
 
     def fit(self, x_in, y_in):
         """Fit the model according to the given training data."""
-        # pbar = tqdm(total=EPOCH)
 
         x_in, y_in = self.__normalize(x_in, y_in)
 
@@ -119,19 +118,44 @@ class LogisticRegression(object):
         j_list = []
 
         # fit
-        for epoch in range(EPOCH):
-            y_get = self.__forward(x_in)
-            j_list = self.__cost_function(y_get, y_in, j_list)
-            self.__back(x_in, y_get, y_in)
-            if epoch % 50 == 0:
-                # pbar.update(50)
-                print("EPOCH: %4d" % epoch, " | Cost: ", j_list[-1])
-        # pbar.close()
+        for label in range(self.__label_count(y_in)):                           # 每个label
+
+            y_new = y_in
+            for row in range(np.size(y_in, axis=0)):                            # 分离1 vs all
+                if y_new[row] == label:                                         # 1
+                    y_new[row] = 1
+                else:                                                           # all
+                    y_new[row] = 0
+
+            for epoch in range(EPOCH):
+                y_get = self.__forward(x_in, label)
+                j_list = self.__cost_function(y_get, y_new, j_list)
+                self.__back(x_in, y_get, y_new, label)
+                if epoch % 50 == 0:
+                    print("EPOCH: %4d" % epoch, " | Cost: ", j_list[-1])
 
         # plot
         self.__plot_j(j_list)
         print("Minimized cost: %.5f" % j_list[-1])
         return self
+
+    def __label_count(self, y_in):
+        """将每个label与出现次数转为字典 {label值:出现次数}
+
+        Parameters:
+            y_in: label
+
+        Returns:
+            len(clf_data): 字典长度
+        """
+
+        clf_data = {}
+        for i in range(np.size(y_in, axis=0)):
+            if int(y_in[i]) not in clf_data:
+                clf_data[int(y_in[i])] = 1
+            else:
+                clf_data[int(y_in[i])] += 1
+        return len(clf_data)
 
     def predict(self, x_pre, y_pre):
         """Predict class labels for samples in X."""
@@ -149,31 +173,16 @@ class LogisticRegression(object):
 
         return y_pre
 
-    def __get_params(self):
-        """Get parameters for this estimator."""
-        params = self.__params
-        return params
-
-    def __set_params(self, params_in):
-        """Set parameters for this estimator."""
-        self.__params = params_in
-        return 0
-
     def score(self, x_score, y_score):
         """Returns the mean accuracy on the given test data and labels."""
 
-        x_score, y_score = self.__normalize(x_score, y_score)
-        y_pred = self.__forward(x_score)
+        y_pred = self.predict(x_score, y_score)
 
         # record the right classify
         count = 0
 
         # turn into 0/1, then judge
         for j in range(np.size(y_score, axis=0)):
-            if y_pred[j] >= SCALE:
-                y_pred[j] = 1
-            else:
-                y_pred[j] = 0
             if y_pred[j] == y_score[j]:
                 count = count + 1
         accuracy = count / np.size(y_score, axis=0) * 100

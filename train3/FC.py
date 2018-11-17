@@ -5,12 +5,12 @@ from sklearn.feature_extraction import DictVectorizer
 
 
 # 超参数
-EPOCH = 1000
+EPOCH = 900
 LAMBDA = 10
-ALPHA = 0.03
+ALPHA = 0.1
 
 
-def leave_out():
+def leave_out(data):
     """Divide data into 70% for train and 30% for test.
 
     Returns:
@@ -20,27 +20,46 @@ def leave_out():
         y_get_train: matrix, label
 
     """
-    data_frame = pd.read_csv('./titanic/train.csv')
+    if data == 'titanic':
+        data_frame = pd.read_csv('./titanic/train.csv')
 
-    # 填补空缺值
-    data_frame = data_frame.fillna(method='ffill')  # 待改进
+        # 填补空缺值
+        data_frame = data_frame.fillna(method='ffill')  # 待改进
 
-    # 删除不必要特征
-    del data_frame['PassengerId']
-    del data_frame['Cabin']
-    del data_frame['Name']
-    del data_frame['Ticket']
+        # 删除不必要特征
+        del data_frame['PassengerId']
+        del data_frame['Cabin']
+        del data_frame['Name']
+        del data_frame['Ticket']
 
-    # 特征向量化
-    dvec = DictVectorizer(sparse=False)
-    data_get = dvec.fit_transform(data_frame.to_dict(orient='record'))
+        # 特征向量化
+        dvec = DictVectorizer(sparse=False)
+        data_get = dvec.fit_transform(data_frame.to_dict(orient='record'))
 
-    leave_num = int((np.size(data_get, axis=0) - (np.size(data_get, axis=0) % 10)) / 10 * 7)
-    x_get = data_get[:leave_num, :-2]
-    y_get = data_get[:leave_num, -1]
-    x_test_get = data_get[(leave_num + 1):, :-2]
-    y_test_get = data_get[(leave_num + 1):, -1]
-    return x_get, y_get, x_test_get, y_test_get
+        leave_num = int((np.size(data_get, axis=0) - (np.size(data_get, axis=0) % 10)) / 10 * 7)
+        x_get = data_get[:leave_num, :-2]
+        y_get = data_get[:leave_num, -1]
+        x_test_get = data_get[(leave_num + 1):, :-2]
+        y_test_get = data_get[(leave_num + 1):, -1]
+        return x_get, y_get, x_test_get, y_test_get
+
+    elif data == 'wine':
+        data_frame = pd.read_csv('./wine.csv')
+        data_get = np.array(data_frame)
+
+        data_boot = np.zeros_like(data_get)
+        for k in range(np.size(data_get, axis=0)):
+            random_int = np.random.randint(low=0, high=(np.size(data_get, axis=0) - 1))
+            data_boot[k] = data_get[random_int, :]
+
+        x_get = data_boot[:, 1:]
+        y_get = data_boot[:, 0]
+        x_test_get = data_get[:, 1:]
+        y_test_get = data_get[:, 0]
+        return x_get, y_get, x_test_get, y_test_get
+
+    else:
+        raise KeyError('Input titanic or wine!')
 
 
 class FC(object):
@@ -89,16 +108,14 @@ class FC(object):
         x_in, y_in = self.__initialize(x_in, y_in)
         y_pred = self.__forward(x_in)
         y_output = np.argmax(y_pred, axis=1)
-        if self.__start_from_1 == 1:
-            y_output += 1
+        # if self.__start_from_1 == 1:
+        #     y_output += 1
         return y_output
 
     def __cost(self, y_pred, y_in):
-        # j1 = np.sum(np.sum((-y_in * np.log(y_pred) - (1 - y_in) * np.log(1 - y_pred)), axis=1), axis=0)
-        y_new = np.zeros_like(y_in)
-        for row in range(np.size(y_in, axis=0)):
-            y_new[row, np.argmax(y_pred[row], axis=0)] = 1                 # 把pred变成 0, 1
-        j1 = np.sum(np.sum((y_in - y_pred), axis=1), axis=0) / 2
+
+        j1 = np.sum(np.sum((-y_in * np.log(y_pred) - (1 - y_in) * np.log(1 - y_pred)), axis=1), axis=0)  # 把pred变成 0, 1
+        # j1 = np.sum(np.sum((y_in - y_pred), axis=1), axis=0) ** 2 / 2
         j2 = 0
         for i in range(len(self.__params_list)):
             theta = self.__params_list[i]
@@ -130,8 +147,10 @@ class FC(object):
             x_in = np.dot(x_in, self.__params_list[i])
             self.__z_list.append(np.hstack((np.ones((np.size(x_in, axis=0), 1)), x_in)))      # 未激活前
 
-            if i != self.__layer_num - 1:                                                     # 最后一层不激活
+            if i != self.__layer_num - 2:                                                     # 最后一层不激活
                 x_in = self.__activation.forward(x_in)
+            else:
+                x_in = Softmax().forward(x_in)
             self.__a_list.append(np.hstack((np.ones((np.size(x_in, axis=0), 1)), x_in)))      # 激活后
         return x_in
 
@@ -146,10 +165,7 @@ class FC(object):
             for layer in range(self.__layer_num - 2, -1, -1):              # num-2--0 num-1个
 
                 if layer == self.__layer_num - 2:                          # 最后一层
-                    a_back = self.__activation.backward(self.__z_list[layer][row, :])   # 激活函数反向
-                    a_back = (a_back.reshape(np.size(a_back, axis=0), 1))[1:, :]
-
-                    delta_list[layer] = (y_new[row] - y_in[row]).reshape(np.size(y_in, axis=1), 1) * a_back
+                    delta_list[layer] = Softmax().backward(y_in[row], y_pred[row]).reshape(np.size(y_in, axis=1), 1)
                     a_get = self.__a_list[layer][row, :]
                     a_get = a_get.reshape(np.size(a_get, axis=0), 1)
                     delta_sum_list[layer] += np.dot(a_get, delta_list[layer].T)
@@ -166,7 +182,7 @@ class FC(object):
         # 更新
         for i in range(self.__layer_num - 1):
             theta = self.__params_list[i]
-            theta[:, 0] = 0
+            # theta[:, 0] = 0
             self.__params_list[i] -= ALPHA * (delta_sum_list[i] + LAMBDA * theta) / np.size(y_in, axis=0)
 
     def __initialize(self, x_in, y_in):
@@ -188,6 +204,7 @@ class FC(object):
                 self.__start_from_1 = 0
         if self.__start_from_1 == 1:
             y_in -= 1                      # 从1开始的话-1,最后再加1
+
         self.__label_num = self.__label_count(y_in)
         y_matrix = np.zeros((np.size(y_in, axis=0), self.__label_num))
         for j in range(np.size(y_in, axis=0)):
@@ -287,6 +304,7 @@ class LeakyReLU(object):
             for i in range(np.size(inputs, axis=0)):
                 if inputs[i, j] < 0:
                     inputs[i, j] = 0.01 * inputs[i, j]
+        return inputs
 
     def backward(self, inputs):
         for i in range(np.size(inputs, axis=0)):
@@ -294,6 +312,7 @@ class LeakyReLU(object):
                 inputs[i] = 1
             else:
                 inputs[i] = 0.01
+        return inputs
 
 
 class ELU(object):
@@ -302,6 +321,7 @@ class ELU(object):
             for i in range(np.size(inputs, axis=0)):
                 if inputs[i, j] < 0:
                     inputs[i, j] = 0.01 * (np.exp(inputs[i, j] - 1))
+        return inputs
 
     def backward(self, inputs):
         for i in range(np.size(inputs, axis=0)):
@@ -309,9 +329,23 @@ class ELU(object):
                 inputs[i] = 1
             else:
                 inputs[i] = 0.01 * np.exp(inputs[i])
+        return inputs
+
+
+class Softmax(object):
+    def forward(self, inputs):
+        inputs_new = np.exp(inputs)
+        inputs_sum = np.sum(inputs_new, axis=1)
+        for i in range(np.size(inputs_new, axis=0)):
+            inputs_new[i, :] = inputs_new[i, :] / inputs_sum[i]
+        return inputs_new
+
+    def backward(self, y, y_pred):
+        return y_pred - y
 
 
 if __name__ == "__main__":
-    x, y, x_test, y_test = leave_out()
-    clf = FC(layer_num=3, layer_size=[20], activation=ReLU()).fit(x, y)
+    x, y, x_test, y_test = leave_out('titanic')
+    clf = FC(layer_num=3, layer_size=[20], activation=ELU()).fit(x, y)
+    clf.score(x, y)
     clf.score(x_test, y_test)
