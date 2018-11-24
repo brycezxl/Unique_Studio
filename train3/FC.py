@@ -5,9 +5,10 @@ from sklearn.feature_extraction import DictVectorizer
 
 
 # 超参数
-EPOCH = 900
-LAMBDA = 10
+EPOCH = 600
+LAMBDA = 3
 ALPHA = 0.1
+Momentum = 0.9
 
 
 def leave_out(data):
@@ -73,6 +74,7 @@ class FC(object):
         self.__z_list = []
         self.__start_from_1 = 0
         self.__count = 0
+        self.__momentum = [0] * (self.__layer_num - 1)
 
     def fit(self, x_in, y_in):
         x_in, y_in = self.__initialize(x_in, y_in)
@@ -82,7 +84,7 @@ class FC(object):
             j_list.append(self.__cost(y_pred, y_in))
             self.__backward(y_pred, y_in)
             if epoch % 10 == 0:
-                print("EPOCH: %6d / %6d" % (epoch, EPOCH), ' | Cost: %8.4f' % float(j_list[-1]))
+                print("EPOCH: %4d / %4d" % (epoch, EPOCH), ' | Cost: %7.4f' % float(j_list[-1]))
         self.__plot_j(j_list)
         return self
 
@@ -161,10 +163,10 @@ class FC(object):
         y_new = np.zeros_like(y_in)
 
         for row in range(np.size(y_in, axis=0)):
-            y_new[row, np.argmax(y_pred[row], axis=0)] = 1                 # 把pred变成 0, 1
-            for layer in range(self.__layer_num - 2, -1, -1):              # num-2--0 num-1个
+            y_new[row, np.argmax(y_pred[row], axis=0)] = 1                              # 把pred变成 0, 1
+            for layer in range(self.__layer_num - 2, -1, -1):                           # num-2--0 num-1个
 
-                if layer == self.__layer_num - 2:                          # 最后一层
+                if layer == self.__layer_num - 2:                                       # 最后一层
                     delta_list[layer] = Softmax().backward(y_in[row], y_pred[row]).reshape(np.size(y_in, axis=1), 1)
                     a_get = self.__a_list[layer][row, :]
                     a_get = a_get.reshape(np.size(a_get, axis=0), 1)
@@ -183,7 +185,9 @@ class FC(object):
         for i in range(self.__layer_num - 1):
             theta = self.__params_list[i]
             # theta[:, 0] = 0
-            self.__params_list[i] -= ALPHA * (delta_sum_list[i] + LAMBDA * theta) / np.size(y_in, axis=0)
+            grad = Momentum * self.__momentum[i] + ALPHA * (delta_sum_list[i] + LAMBDA * theta) / np.size(y_in, axis=0)
+            self.__params_list[i] -= grad
+            self.__momentum[i] = grad
 
     def __initialize(self, x_in, y_in):
         """Normalize x_in, initialize params, and reshape y_in.
@@ -346,6 +350,5 @@ class Softmax(object):
 
 if __name__ == "__main__":
     x, y, x_test, y_test = leave_out('titanic')
-    clf = FC(layer_num=3, layer_size=[20], activation=ELU()).fit(x, y)
-    clf.score(x, y)
+    clf = FC(layer_num=3, layer_size=[20], activation=ReLU()).fit(x, y)
     clf.score(x_test, y_test)
