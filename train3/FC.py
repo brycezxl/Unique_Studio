@@ -5,10 +5,11 @@ from sklearn.feature_extraction import DictVectorizer
 
 
 # 超参数
-EPOCH = 600
-LAMBDA = 3
+EPOCH = 300
+LAMBDA = 10
 ALPHA = 0.1
 Momentum = 0.9
+P = 0.5              # dropout
 
 
 def leave_out(data):
@@ -150,7 +151,8 @@ class FC(object):
             self.__z_list.append(np.hstack((np.ones((np.size(x_in, axis=0), 1)), x_in)))      # 未激活前
 
             if i != self.__layer_num - 2:                                                     # 最后一层不激活
-                x_in = self.__activation.forward(x_in)
+                dropout = (np.random.random((np.shape(x_in))) < P) / P
+                x_in = self.__activation.forward(x_in) * dropout
             else:
                 x_in = Softmax().forward(x_in)
             self.__a_list.append(np.hstack((np.ones((np.size(x_in, axis=0), 1)), x_in)))      # 激活后
