@@ -25,3 +25,7 @@ data
 test.py
 *.png
 __pycache__
+/train5/CNN_CV
+cifar-10-batches-py
+.vector_cache
+.data
