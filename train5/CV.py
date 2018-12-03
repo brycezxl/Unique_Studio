@@ -9,7 +9,7 @@ import numpy as np
 __all__ = torch
 
 
-BATCH_SIZE = 256
+BATCH_SIZE = 128
 EPOCH = 30
 LEARNING_RATE = 0.01
 
@@ -67,19 +67,19 @@ class CNN(nn.Module):
         self.pool = nn.MaxPool2d(2, 1)
         self.bn1 = nn.BatchNorm2d(16)
         nn.init.kaiming_normal_(self.conv1.weight)
-        self.conv2 = nn.Conv2d(in_channels=16, out_channels=64, kernel_size=3, stride=2, padding=1)
+        self.conv2 = nn.Conv2d(in_channels=16, out_channels=64, kernel_size=3, stride=1, padding=1)
         nn.init.kaiming_normal_(self.conv2.weight)
         self.bn2 = nn.BatchNorm2d(64)
-        self.conv3 = nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, stride=2, padding=1)
+        self.conv3 = nn.Conv2d(in_channels=64, out_channels=128, kernel_size=2, stride=2, padding=1)
         nn.init.kaiming_normal_(self.conv3.weight)
         self.bn3 = nn.BatchNorm2d(128)
-        self.conv4 = nn.Conv2d(in_channels=128, out_channels=256, kernel_size=3, stride=1, padding=1)
+        self.conv4 = nn.Conv2d(in_channels=128, out_channels=256, kernel_size=2, stride=1, padding=1)
         nn.init.kaiming_normal_(self.conv4.weight)
         self.bn4 = nn.BatchNorm2d(256)
-        self.conv5 = nn.Conv2d(in_channels=256, out_channels=512, kernel_size=3, stride=1, padding=0)
-        nn.init.kaiming_normal_(self.conv5.weight)  # 6 6
-        self.bn5 = nn.BatchNorm2d(512)
-        self.fc1 = nn.Linear(in_features=512 * 5 * 5, out_features=2048)  # 13 13
+        self.conv5 = nn.Conv2d(in_channels=256, out_channels=256, kernel_size=2, stride=1, padding=0)
+        nn.init.kaiming_normal_(self.conv5.weight)  # 14
+        self.bn5 = nn.BatchNorm2d(256)
+        self.fc1 = nn.Linear(in_features=256 * 14 * 14, out_features=2048)
         nn.init.kaiming_normal_(self.fc1.weight)
         self.bn6 = nn.BatchNorm1d(2048)
         self.fc2 = nn.Linear(in_features=2048, out_features=2048)
@@ -94,10 +94,10 @@ class CNN(nn.Module):
         x = self.bn3(f.relu(self.conv3(x)))
         x = self.bn4(f.relu(self.conv4(x)))
         x = self.bn5(f.relu(self.conv5(x)))
-        x = x.view(-1, 512 * 5 * 5)
+        x = x.view(-1, 256 * 14 * 14)
         x = self.bn6(f.relu(self.fc1(x)))
         x = self.bn7(f.relu(self.fc2(x)))
-        x = self.fc3(x)
+        x = f.softmax(self.fc3(x), dim=0)
         return x
 
 
