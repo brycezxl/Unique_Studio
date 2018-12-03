@@ -75,7 +75,7 @@ class CNN(nn.Module):
         self.bn3 = nn.BatchNorm2d(128)
         self.conv4 = nn.Conv2d(in_channels=128, out_channels=128, kernel_size=2, stride=1, padding=1)
         nn.init.kaiming_normal_(self.conv4.weight)
-        self.bn4 = nn.BatchNorm2d(256)
+        self.bn4 = nn.BatchNorm2d(128)
         self.conv5 = nn.Conv2d(in_channels=128, out_channels=128, kernel_size=2, stride=1, padding=0)
         nn.init.kaiming_normal_(self.conv5.weight)  # 14
         self.bn5 = nn.BatchNorm2d(128)
@@ -94,7 +94,7 @@ class CNN(nn.Module):
         x = self.bn3(f.relu(self.conv3(x)))
         x = self.bn4(f.relu(self.conv4(x)))
         x = self.bn5(f.relu(self.conv5(x)))
-        x = x.view(-1, 256 * 14 * 14)
+        x = x.view(-1, 128 * 14 * 14)
         x = self.bn6(f.relu(self.fc1(x)))
         x = self.bn7(f.relu(self.fc2(x)))
         x = self.fc3(x)
