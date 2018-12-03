@@ -9,9 +9,9 @@ import numpy as np
 __all__ = torch
 
 
-BATCH_SIZE = 256
-EPOCH = 20
-LEARNING_RATE = 0.03
+BATCH_SIZE = 64
+EPOCH = 50
+LEARNING_RATE = 0.003
 
 
 class CIFAR10(torch.utils.data.Dataset):
