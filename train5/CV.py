@@ -10,7 +10,7 @@ __all__ = torch
 
 
 BATCH_SIZE = 256
-EPOCH = 10
+EPOCH = 20
 LEARNING_RATE = 0.03
 
 
