@@ -9,8 +9,8 @@ import numpy as np
 __all__ = torch
 
 
-BATCH_SIZE = 128
-EPOCH = 30
+BATCH_SIZE = 64
+EPOCH = 50
 LEARNING_RATE = 0.003
 
 
@@ -73,13 +73,13 @@ class CNN(nn.Module):
         self.conv3 = nn.Conv2d(in_channels=64, out_channels=128, kernel_size=2, stride=2, padding=1)
         nn.init.kaiming_normal_(self.conv3.weight)
         self.bn3 = nn.BatchNorm2d(128)
-        self.conv4 = nn.Conv2d(in_channels=128, out_channels=256, kernel_size=2, stride=1, padding=1)
+        self.conv4 = nn.Conv2d(in_channels=128, out_channels=128, kernel_size=2, stride=1, padding=1)
         nn.init.kaiming_normal_(self.conv4.weight)
         self.bn4 = nn.BatchNorm2d(256)
-        self.conv5 = nn.Conv2d(in_channels=256, out_channels=256, kernel_size=2, stride=1, padding=0)
+        self.conv5 = nn.Conv2d(in_channels=128, out_channels=128, kernel_size=2, stride=1, padding=0)
         nn.init.kaiming_normal_(self.conv5.weight)  # 14
-        self.bn5 = nn.BatchNorm2d(256)
-        self.fc1 = nn.Linear(in_features=256 * 14 * 14, out_features=2048)
+        self.bn5 = nn.BatchNorm2d(128)
+        self.fc1 = nn.Linear(in_features=128 * 14 * 14, out_features=2048)
         nn.init.kaiming_normal_(self.fc1.weight)
         self.bn6 = nn.BatchNorm1d(2048)
         self.fc2 = nn.Linear(in_features=2048, out_features=2048)
