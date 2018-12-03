@@ -10,8 +10,8 @@ __all__ = torch
 
 
 BATCH_SIZE = 128
-EPOCH = 40
-LEARNING_RATE = 0.003
+EPOCH = 30
+LEARNING_RATE = 0.001
 
 
 class CIFAR10(torch.utils.data.Dataset):
