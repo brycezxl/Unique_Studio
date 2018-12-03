@@ -9,8 +9,8 @@ import numpy as np
 __all__ = torch
 
 
-BATCH_SIZE = 64
-EPOCH = 50
+BATCH_SIZE = 128
+EPOCH = 40
 LEARNING_RATE = 0.003
 
 
