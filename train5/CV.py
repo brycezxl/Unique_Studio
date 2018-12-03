@@ -97,7 +97,7 @@ class CNN(nn.Module):
         x = x.view(-1, 256 * 14 * 14)
         x = self.bn6(f.relu(self.fc1(x)))
         x = self.bn7(f.relu(self.fc2(x)))
-        x = f.softmax(self.fc3(x), dim=0)
+        x = f.softmax(self.fc3(x), dim=1)
         return x
 
 
