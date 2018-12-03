@@ -128,7 +128,10 @@ def main():
         num_workers=2
     )
 
+    device = torch.device("cuda")
+
     net = CNN()
+    net = net.to(device)
 
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(net.parameters(), lr=LEARNING_RATE)
@@ -138,6 +141,8 @@ def main():
         for i, data in enumerate(train_loader):
             # load
             inputs, labels = data
+            inputs = inputs.to(device)
+            labels = labels.to(device)
 
             # zero grad
             optimizer.zero_grad()
@@ -161,6 +166,10 @@ def main():
     with torch.no_grad():
         for data in test_loader:
             images, labels = data
+
+            images = images.to(device)
+            labels = labels.to(device)
+
             outputs = net(images)
             _, predicted = torch.max(outputs.data, 1)
             total += labels.size(0)
@@ -168,7 +177,7 @@ def main():
 
     print('Accuracy of the network on the 10000 test images: %d %%' % (100 * correct / total))
 
-    torch.save(net.state_dict(), 'CNN_CV')  # 储存整个网络
+    torch.save(net.state_dict(), 'cnn')  # 储存整个网络
 
 
 if __name__ == '__main__':
