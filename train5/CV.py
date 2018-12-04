@@ -104,15 +104,12 @@ class CNN(nn.Module):
 def main():
     # load data
     transform_train = t.Compose([
-        t.ToTensor(),
-        t.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
         t.ToPILImage(),
         t.RandomHorizontalFlip(p=0.5),
-        t.RandomRotation(degrees=15),
         t.ToTensor(),
+        t.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
     ])
     transform_test = t.Compose([
-        t.ToPILImage(),
         t.ToTensor(),
         t.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
     ])
