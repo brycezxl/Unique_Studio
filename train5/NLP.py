@@ -1,128 +1,150 @@
+import numpy as np
+import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as f
 from torchtext import data
-from torchtext.vocab import Vectors
-from torch.nn import init
-from tqdm import tqdm
-import torch.utils.data
-from torchtext.data import Iterator, BucketIterator
-from torchtext.vocab import GloVe
-from torchtext import data
-import torch
-import torchtext
-import pickle
-import numpy as np
+import glob
 __all__ = torch
 
 
-# get_dataset构造并返回Dataset所需的examples和fields
-# def get_dataset(train=True):
-#
-#     text_field = data.Field(sequential=True, lower=True)
-#     label_field = data.Field(sequential=False, use_vocab=False)
-#
-#     # id数据对训练在训练过程中没用，使用None指定其对应的field
-#     fields = [("id", None), ("comment_text", text_field), ("toxic", label_field)]
-#     examples = []
-#
-#     for text, label in tqdm(zip(csv_data['comment_text'], csv_data['toxic'])):
-#             examples.append(data.Example.fromlist([None, text, label], fields))
-#
-#     return examples, fields
-#
-#
-# # 得到构建Dataset所需的examples和fields
-# train_examples, train_fields = get_dataset(train=True)
-# test_examples, test_fields = get_dataset(train=False)
-#
-# # 构建Dataset数据集
-# train_data = data.Dataset(train_examples, train_fields)
-# test_data = data.Dataset(test_examples, test_fields)
-
-# field
-# text_in = data.Field(lower=True, include_lengths=True, batch_first=True, fix_length=200)
-# label = data.Field(sequential=False, use_vocab=False)
-#
-# # create iterator
-# dataset = torchtext.datasets.IMDB(text_field=text_in, label_field=label, path=r"/home/bryce/Documents/Datasets")
-# train, test = dataset.iters(device=-1, root=r"/home/bryce/Documents/Datasets")
-
-# 词表
-# text.build_vocab(train)
-# label.build_vocab(train)
+BATCH_SIZE = 128
+EPOCH = 1
+LEARNING_RATE = 0.01
 
 
-class LSTM(nn.Module):
+def aclimbd(text_field, label_field):
 
-    def __init__(self, weight_matrix, text):
-        super(LSTM, self).__init__()
-        self.word_embeddings = nn.Embedding(len(text.vocab), 300)  # embedding之后的shape: torch.Size([200, 8, 300])
-        # 若使用预训练的词向量，需在此处指定预训练的权重
-        self.word_embedding.weight.data.copy_(weight_matrix)
-        self.lstm = nn.LSTM(input_size=300, hidden_size=128, num_layers=1)  # torch.Size([200, 8, 128])
-        self.decoder = nn.Linear(128, 2)
+    def txt_split(txt_path):
+        split = 0
+        with open("imdb%s" % txt_path) as txt:
+            txt = txt.readlines()
+            for content in txt:
+                content = str.lower(content)
+                content.lower()
+                for old in [",", ":", '"', "-", "<br />", ".", "!", "?", ".", "(", ")", "*"]:
+                    content = str.replace(content, old, " ")
+                split = content.split(sep=" ")
+                k = 0
+                while k < len(split):
+                    if split[k] == '':
+                        del split[k]
+                        continue
+                    else:
+                        k += 1
+        return split
 
-    def forward(self, sentence):
-        embeds = self.word_embeddings(sentence)
-        lstm_out = self.lstm(embeds)[0]  # lstm_out:200x8x128
-        # 取最后一个时间步
-        final = lstm_out[-1]  # 8*128
-        y = self.decoder(final)  # 8*2
-        return y
+    train_examples = []
+    test_examples = []
+    fields = [("text", text_field), ("label", label_field)]
+
+    # 读取所有txt
+    text_name = glob.glob('imdb/aclImdb/train/pos/*.txt')
+    text_name.extend(glob.glob('imdb/aclImdb/train/neg/*.txt'))
+
+    # 初始化数组
+    text_array = np.zeros((len(text_name), 2)).astype(dtype=str)
+
+    # 把txt名和label放到数组
+    for j in range(len(text_name)):
+        text_array[j, 0] = text_name[j][4:]
+        if text_name[j][19] == 'n':
+            text_array[j, 1] = 'neg'
+        else:
+            text_array[j, 1] = 'pos'
+
+    # shuffle
+    np.random.shuffle(text_array)
+
+    # 读取文本+split
+    for j in range(len(text_name)):
+        # train
+        if j <= 0.7 * len(text_name):
+            train_examples.append(data.Example.
+                                  fromlist([txt_split(text_array[j, 0]), text_array[j, 1]], fields))
+        # test
+        else:
+            test_examples.append(data.Example.
+                                 fromlist([txt_split(text_array[j, 0]), text_array[j, 1]], fields))
+
+    train_in = data.Dataset(train_examples, fields)
+    test_in = data.Dataset(test_examples, fields)
+    return train_in, test_in
 
 
-def data_iter(text_in, label_in):
-    dataset = torchtext.datasets.IMDB(text_field=text_in, label_field=label_in, path=r"/home/bryce/Documents/Datasets")
-    train_in, test_in = dataset.iters(device=-1, root=r"/home/bryce/Documents/Datasets")
+class CNN(nn.Module):
+    def __init__(self):
+        super(CNN, self).__init__()
+        self.word_embeddings = nn.Embedding(len(TEXT.vocab), 100)
+        self.fc = nn.Linear(20000, 8)
 
-    # build the vocabulary`
-    text_in.build_vocab(train_in, )
-    label_in.build_vocab(train_in)
-    weight_matrix = text_in.vocab.vectors
-    # 若只针对训练集构造迭代器
-    # train_iter = data.BucketIterator(dataset=train, batch_size=8, shuffle=True, sort_within_batch=False, repeat=False)
-    # train_iter = data.BucketIterator.splits(
-    #         train_in,  # 构建数据集所需的数据集
-    #         batch_sizes=(8, 8),
-    #         # 如果使用gpu，此处将-1更换为GPU的编号
-    #         device=-1,
-    #         # the BucketIterator needs to be told what function it should use to group the data.
-    #         sort_key=lambda x: len(x.comment_text),
-    #         sort_within_batch=False,
-    # )
-    # test_iter = Iterator(test_in, batch_size=8, sort=False, sort_within_batch=False, repeat=False)
-    return train_in, test_in, weight_matrix
-
-
-def main():
-    # field
-    text = data.Field(lower=True, include_lengths=True, batch_first=True, fix_length=200)
-    label = data.Field(sequential=False, use_vocab=False)
-
-    train, test = torchtext.datasets.IMDB.splits(text, label)
-
-    # build the vocabulary
-    text.build_vocab(train, vectors=GloVe(name='6B', dim=300))
-    label.build_vocab(train)
-
-    # iter
-    train_iter, test_iter, weight_matrix = data_iter(text, label)
-
-    model = LSTM(weight_matrix, text)
-    model.train()
-    optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=0.01)
-    loss_function = f.cross_entropy
-
-    for epoch, batch in enumerate(train_iter):
-        optimizer.zero_grad()
-        predicted = model(batch.comment_text)
-
-        loss = loss_function(predicted, batch.toxic)
-        loss.backward()
-        optimizer.step()
-        print(loss)
+    def forward(self, x):
+        x = self.word_embeddings(x).view(x.size(0), -1)
+        x = f.softmax(self.fc(x), dim=1)
+        return x
 
 
 if __name__ == '__main__':
-    main()
+    # load
+    TEXT = data.Field(lower=True, batch_first=True, fix_length=200)
+    LABEL = data.Field(sequential=False)
+    # train, test = torchtext.datasets.IMDB.splits(TEXT, LABEL, root='./')
+    train, test = aclimbd(TEXT, LABEL)
+
+    # build vocab
+    TEXT.build_vocab(train)
+    LABEL.build_vocab(train)
+
+    # iter
+    train_iter, test_iter = data.BucketIterator.splits((train, test), batch_size=128, shuffle=True,
+                                                       repeat=False, sort=False)
+
+    net = CNN()
+    device = torch.device("cuda")
+    net = net.to(device)
+
+    criterion = nn.CrossEntropyLoss()
+    optimizer = optim.Adam(net.parameters(), lr=LEARNING_RATE)
+
+    for epoch in range(EPOCH):
+        running_loss = 0.0
+        for i, data in enumerate(train_iter):
+            # load
+            inputs = data.text
+            labels = data.label
+            inputs = inputs.to(device)
+            labels = labels.to(device)
+
+            # zero grad
+            optimizer.zero_grad()
+
+            # forward + backward + optimize
+            outputs = net(inputs)
+            loss = criterion(outputs, labels)
+            loss.backward()
+            optimizer.step()
+
+            # print statistics
+            running_loss += loss.item()
+            if i % 10 == 9:  # print every 10 mini-batches
+                print('[%d, %5d]  Loss: %.6f' %
+                      (epoch + 1, i + 1, running_loss / 500))
+                running_loss = 0.0
+
+    # predict
+    correct = 0
+    total = 0
+    with torch.no_grad():
+        for i, data in enumerate(test_iter):
+            inputs = data.text
+            labels = data.label
+
+            inputs = inputs.to(device)
+            labels = labels.to(device)
+
+            outputs = net(inputs)
+            _, predicted = torch.max(outputs.data, 1)
+            total += labels.size(0)
+            correct += (predicted == labels).sum().item()
+
+    print('Accuracy of the network on the 10000 test images: %d %%' % (100 * correct / total))
