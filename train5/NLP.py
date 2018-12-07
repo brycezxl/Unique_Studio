@@ -76,10 +76,12 @@ class CNN(nn.Module):
     def __init__(self):
         super(CNN, self).__init__()
         self.word_embeddings = nn.Embedding(len(TEXT.vocab), 100)
+        self.ln = nn.LayerNorm(20000)
         self.fc = nn.Linear(20000, 8)
 
     def forward(self, x):
         x = self.word_embeddings(x).view(x.size(0), -1)
+        x = self.ln(x)
         x = f.softmax(self.fc(x), dim=1)
         return x
 
