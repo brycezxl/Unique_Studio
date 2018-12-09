@@ -1,15 +1,15 @@
 import numpy as np
 import torch
 import torch.nn as nn
-import torch.optim as optim
 import torch.nn.functional as f
+import torch.optim as optim
 from torchtext import data
 import glob
 __all__ = torch
 
 
 BATCH_SIZE = 128
-EPOCH = 1
+EPOCH = 10
 LEARNING_RATE = 0.01
 
 
@@ -72,17 +72,22 @@ def aclimbd(text_field, label_field):
     return train_in, test_in
 
 
-class CNN(nn.Module):
+class RNN(nn.Module):
     def __init__(self):
-        super(CNN, self).__init__()
-        self.word_embeddings = nn.Embedding(len(TEXT.vocab), 100)
-        self.ln = nn.LayerNorm(20000)
-        self.fc = nn.Linear(20000, 8)
+        super(RNN, self).__init__()
+
+        self.word_embeddings = nn.Embedding(len(TEXT.vocab), 200)
+        self.lstm = nn.LSTM(input_size=200, hidden_size=128, num_layers=1, batch_first=True)
+        self.fc1 = nn.Linear(128, 64)
+        nn.init.kaiming_normal_(self.fc1.weight)
+        self.fc2 = nn.Linear(64, 2)
+        nn.init.xavier_normal_(self.fc2.weight)
 
     def forward(self, x):
-        x = self.word_embeddings(x).view(x.size(0), -1)
-        x = self.ln(x)
-        x = f.softmax(self.fc(x), dim=1)
+        x = self.word_embeddings(x)
+        x, _ = self.lstm(x, None)
+        x = f.relu(self.fc1(x[:, -1, :]))
+        x = self.fc2(x)
         return x
 
 
@@ -90,7 +95,6 @@ if __name__ == '__main__':
     # load
     TEXT = data.Field(lower=True, batch_first=True, fix_length=200)
     LABEL = data.Field(sequential=False)
-    # train, test = torchtext.datasets.IMDB.splits(TEXT, LABEL, root='./')
     train, test = aclimbd(TEXT, LABEL)
 
     # build vocab
@@ -98,10 +102,10 @@ if __name__ == '__main__':
     LABEL.build_vocab(train)
 
     # iter
-    train_iter, test_iter = data.BucketIterator.splits((train, test), batch_size=128, shuffle=True,
+    train_iter, test_iter = data.BucketIterator.splits((train, test), batch_size=BATCH_SIZE, shuffle=True,
                                                        repeat=False, sort=False)
 
-    net = CNN()
+    net = RNN()
     device = torch.device("cuda")
     net = net.to(device)
 
@@ -110,10 +114,13 @@ if __name__ == '__main__':
 
     for epoch in range(EPOCH):
         running_loss = 0.0
+
         for i, data in enumerate(train_iter):
             # load
             inputs = data.text
-            labels = data.label
+            labels = data.label - 1
+            # labels = labels.view(BATCH_SIZE, -1)
+
             inputs = inputs.to(device)
             labels = labels.to(device)
 
@@ -126,20 +133,21 @@ if __name__ == '__main__':
             loss.backward()
             optimizer.step()
 
-            # print statistics
+            # print loss
             running_loss += loss.item()
             if i % 10 == 9:  # print every 10 mini-batches
                 print('[%d, %5d]  Loss: %.6f' %
-                      (epoch + 1, i + 1, running_loss / 500))
+                      (epoch + 1, i + 1, running_loss / 10))
                 running_loss = 0.0
 
     # predict
     correct = 0
     total = 0
     with torch.no_grad():
-        for i, data in enumerate(test_iter):
+        for data in test_iter:
             inputs = data.text
-            labels = data.label
+            labels = data.label - 1
+            # labels = labels.view(BATCH_SIZE, -1)
 
             inputs = inputs.to(device)
             labels = labels.to(device)
