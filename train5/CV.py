@@ -70,13 +70,13 @@ class CNN(nn.Module):
         self.conv2 = nn.Conv2d(in_channels=16, out_channels=64, kernel_size=3, stride=1, padding=1)
         nn.init.kaiming_normal_(self.conv2.weight)
         self.bn2 = nn.BatchNorm2d(64)             # 14
-        self.conv3 = nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, stride=2, padding=1)
+        self.conv3 = nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, stride=1, padding=1)
         nn.init.kaiming_normal_(self.conv3.weight)  # 7
         self.bn3 = nn.BatchNorm2d(128)
-        self.conv4 = nn.Conv2d(in_channels=128, out_channels=256, kernel_size=2, stride=1, padding=1)
+        self.conv4 = nn.Conv2d(in_channels=128, out_channels=256, kernel_size=3, stride=1, padding=1)
         nn.init.kaiming_normal_(self.conv4.weight)
         self.bn4 = nn.BatchNorm2d(256)
-        self.conv5 = nn.Conv2d(in_channels=256, out_channels=256, kernel_size=2, stride=1, padding=1)
+        self.conv5 = nn.Conv2d(in_channels=256, out_channels=256, kernel_size=2, stride=1, padding=0)
         nn.init.kaiming_normal_(self.conv5.weight)  # 7
         self.bn5 = nn.BatchNorm2d(256)
         self.fc1 = nn.Linear(in_features=256 * 6 * 6, out_features=2048)  # 13 13

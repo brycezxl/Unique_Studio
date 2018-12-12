@@ -12,3 +12,4 @@ cifar-10-batches-py
 .data
 *.txt
 imdb
+RACE
