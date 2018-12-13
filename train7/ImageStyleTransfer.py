@@ -1,24 +1,30 @@
 import torch
+import numpy as np
 import torchvision.models as models
 import torch.nn.functional as f
 import torch.nn as nn
+from torchvision import transforms
+import matplotlib.image as mpimg
 
 
 ALPHA_BETA = 0.01
 EPOCH = 20
 WEIGHT = [1, 1, 1, 1, 1]
+style_path = './picture/picasso.jpg'
+content_path = './picture/blue-moon-lake.jpg'
 
 
 class Picture(nn.Module):
 
-    def __init__(self):
-        self.picture = 1
+    def __init__(self, height_in, width_in):
+        self.picture = self.ini_pic(height_in, width_in)
         super(Picture, self).__init__()
 
         self.picture_conv1_1 = nn.Conv2d(3, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
         self.picture_bn1_1 = nn.BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
         self.picture_conv1_2 = nn.Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
         self.picture_bn1_2 = nn.BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+        self.pool = nn.AvgPool2d(kernel_size=2, stride=2, padding=0, ceil_mode=False)  # same global pool
 
         self.picture_conv2_1 = nn.Conv2d(64, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
         self.picture_bn2_1 = nn.BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
@@ -83,6 +89,19 @@ class Picture(nn.Module):
 
         return picture_list
 
+    def ini_pic(self, height_inner, width_inner):
+        pic = np.random.randint(low=0, high=255, size=(height_inner, width_inner, 3))
+        pic = pic.astype(np.float32)
+        pic_transform = transforms.Compose(
+            [
+                transforms.ToTensor()
+            ]
+        )
+        pic = pic_transform(pic).view(1, 3, height_inner, width_inner).to(device)
+        pic.requires_grad = True
+
+        return pic
+
 
 class Content(nn.Module):
 
@@ -92,6 +111,7 @@ class Content(nn.Module):
         self.content_bn1_1 = nn.BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
         self.content_conv1_2 = nn.Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
         self.content_bn1_2 = nn.BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+        self.pool = nn.AvgPool2d(kernel_size=2, stride=2, padding=0, ceil_mode=False)  # same global pool
 
         self.content_conv2_1 = nn.Conv2d(64, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
         self.content_bn2_1 = nn.BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
@@ -251,57 +271,104 @@ class Loss(nn.Module):
             g = 0
             a = 0
 
-            for filter1 in range(style_now.size(0)):
-                for filter2 in range(style_now.size(0)):
-                    g += torch.sum(picture_now[filter1, :, :] * picture_now[filter2, :, :])
-                    a += torch.sum(style_now[filter1, :, :] * style_now[filter2, :, :])
-
-            e_list.append((g - a) ** 2)
+            for filter1 in range(style_now.size(1)):
+                for filter2 in range(style_now.size(1)):
+                    g += torch.sum(picture_now[:, filter1, :, :] * picture_now[:, filter2, :, :])
+                    a += torch.sum(style_now[:, filter1, :, :] * style_now[:, filter2, :, :])
+            e_list.append((g - a) ** 2 / style_now.size(1) ** 2 / (style_now.size(2) * style_now.size(3)) ** 2 / 4)
 
         style_loss = 0
 
         for layer in range(5):
-            style_loss += e_list[layer] * self.weight(layer)
+            style_loss += e_list[layer] * self.weight[layer]
 
         prod = content_list[0] - picture_list[3]
         content_loss = 0.5 * torch.sum(prod * prod)
 
         loss_total = self.alpha * content_loss + self.beta * style_loss
+
         return loss_total
 
 
-device = torch.device("cuda")
+def get_pic(style_path_in, content_path_in):
+    style_in = mpimg.imread(style_path_in)
+    content_in = mpimg.imread(content_path_in)
+    height_in, width_in, _ = content_in.shape
 
-content_pic = 1.to(device)
-style_pic = 2.to(device)
+    height_in = int(height_in / 50)
+    width_in = int(width_in / 50)
 
-content_module = get_module(Content()).to(device)
-style_module = get_module(Style()).to(device)
-picture_module = get_module(Picture()).to(device)
+    style_transform = transforms.Compose(
+        [
+            transforms.ToPILImage(),
+            transforms.Resize((height_in, width_in)),
+            transforms.ToTensor()
+        ]
+    )
 
-content = content_module(content_pic)
-style = style_module(style_pic)
+    content_transform = transforms.Compose(
+        [
+            transforms.ToPILImage(),
+            transforms.Resize((height_in, width_in)),
+            transforms.ToTensor()
+        ]
+    )
 
-BETA = torch.Tensor(1).to(device)
-ALPHA = torch.Tensor(ALPHA_BETA).to(device)
-weight = torch.Tensor(WEIGHT).to(device)
+    style_in = style_transform(style_in).view(1, 3, height_in, width_in).to(device)
+    content_in = content_transform(content_in).view(1, 3, height_in, width_in).to(device)
 
-criterion = Loss(ALPHA, BETA, weight).to(device)
-optimizer = torch.optim.LBFGS(params=picture_module.parameters())
+    return style_in, content_in, height_in, width_in
 
-running_loss = 0
 
-for epoch in range(EPOCH):
-    optimizer.zero_grad()
+if __name__ == '__main__':
 
-    outputs = picture_module()
-    loss = criterion(style, outputs, content)
-    loss.backward()
-    optimizer.step()
+    device = torch.device("cuda")
 
-    running_loss += loss.item()
-    if epoch % 10 == 9:  # print every 10 mini-batches
-        print('EPOCH: %5d  Loss: %.6f' %
-              (epoch + 1, running_loss / 10))
-        running_loss = 0.0
+    # get pictures
+    print('Getting pictures...')
+    content_pic, style_pic, height, width = get_pic(style_path, content_path)
 
+    with torch.no_grad():
+
+        # create modules
+        print('Creating modules...')
+        content_module = get_module(Content()).to(device)
+        style_module = get_module(Style()).to(device)
+        picture_module = get_module(Picture(height, width)).to(device)
+
+        # forward
+        print('Applying forward to content picture...')
+        content = content_module(content_pic)
+        print('Applying forward to style picture...')
+        style = style_module(style_pic)
+
+    print("Preparing for epochs...")
+    # params process
+    # BETA = torch.Tensor(1).to(device)
+    # ALPHA = torch.Tensor(ALPHA_BETA)
+    # weight = torch.Tensor(WEIGHT)
+
+    criterion = Loss(ALPHA_BETA, 1, WEIGHT).to(device)
+    optimizer = torch.optim.LBFGS(params=picture_module.parameters())
+
+    running_loss = 0
+
+    print("Starting epochs...")
+    for epoch in range(EPOCH):
+
+        def closure():
+            optimizer.zero_grad()
+            outputs = picture_module()
+            loss = criterion(style, outputs, content)
+            loss.backward()
+            global running_loss
+            running_loss += loss.item()
+            return loss
+
+        optimizer.step(closure)
+        print(picture_module.picture[0, 0, 0, 0], picture_module.picture[0, 1, 3, 3], picture_module.picture[0, 0, 99, 99])
+
+        if epoch % 1 == 0:  # print every 10 mini-batches
+            print('EPOCH: %5d  Loss: %.6f' %
+                  (epoch + 1, running_loss / 1))
+            running_loss = 0.0
