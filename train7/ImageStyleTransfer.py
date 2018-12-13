@@ -322,7 +322,7 @@ def get_pic(style_path_in, content_path_in):
 
 if __name__ == '__main__':
 
-    device = torch.device("cuda")
+    device = torch.device("cpu")
 
     # get pictures
     print('Getting pictures...')
