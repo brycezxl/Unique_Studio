@@ -9,9 +9,9 @@ import numpy as np
 
 ALPHA_BETA = 0.01
 EPOCH = 5000
-MAX_SIZE = None
-style_path = './picture/picasso.jpg'
-content_path = './picture/blue-moon-lake.jpg'
+MAX_SIZE = 400
+style_path = './picture/starry.jpg'
+content_path = './picture/house.jpg'
 
 
 def load_image(image_path, max_size=None, shape=None):
@@ -20,8 +20,8 @@ def load_image(image_path, max_size=None, shape=None):
     transform = transforms.Compose(
         [
             transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                 std=[0.229, 0.224, 0.225]),
+            # transforms.Normalize(mean=[0.485, 0.456, 0.406],
+            #                      std=[0.229, 0.224, 0.225]),
         ]
     )
 
