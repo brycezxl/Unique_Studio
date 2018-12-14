@@ -7,10 +7,9 @@ from PIL import Image
 import numpy as np
 
 
-ALPHA_BETA_LIST = [8 * 10 ** -4, 1 * 10 ** -4, 4 * 10 ** -4, 5 * 10 ** -3, 1 * 10 ** -3]
-EPOCH = 10000
-MAX_SIZE = 200
-LR = 0.03
+ALPHA_BETA_LIST = [8 * 10 ** -3, 1 * 10 ** -2, 3 * 10 ** -2]
+EPOCH = 200000
+MAX_SIZE = 1200
 style_path = './picture/starry.jpg'
 content_path = './picture/house.jpg'
 
@@ -79,7 +78,7 @@ if __name__ == '__main__':
 
         # 将concent复制一份作为target，并需要计算梯度，作为最终的输出
         target = Variable(content.clone(), requires_grad=True)
-        optimizer = torch.optim.Adam([target], lr=LR)
+        optimizer = torch.optim.Adam([target])
 
         with torch.no_grad():
             content_features = vgg(Variable(content))[3]
@@ -117,11 +116,10 @@ if __name__ == '__main__':
 
             optimizer.step()
 
-            if (epoch + 1) % 100 == 0:
+            if (epoch + 1) % 500 == 0:
                 print('Step: %4d / %4d  |  Content Loss:  %.4f  |  Style Loss:  %.4f'
                       % (epoch + 1, EPOCH, content_loss, style_loss))
 
-            if (epoch + 1) % 5000 == 0:
-                # Save the generated image
-                img = target.clone().cpu().squeeze()
-                torchvision.utils.save_image(img, '%d-output-%d.png' % (count, (epoch + 1)))
+        # Save the generated image
+        img = target.clone().cpu().squeeze()
+        torchvision.utils.save_image(img, '%d-output.png' % count)
