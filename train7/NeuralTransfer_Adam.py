@@ -7,8 +7,8 @@ from PIL import Image
 import numpy as np
 
 
-ALPHA_BETA = 8 * 10 ** -4
-EPOCH = 10000
+ALPHA_BETA_LIST = [8 * 10 ** -4, 1 * 10 ** -4, 4 * 10 ** -4, 5 * 10 ** -3, 1 * 10 ** -3]
+EPOCH = 1
 MAX_SIZE = 200
 LR = 0.03
 style_path = './picture/starry.jpg'
@@ -65,59 +65,63 @@ class VGGNet(nn.Module):
 
 
 if __name__ == '__main__':
-    device = torch.device("cuda")
+    count = 0
+    for ALPHA_BETA in ALPHA_BETA_LIST:
+        count += 1
 
-    # 加载图片
-    content = load_image(content_path, max_size=MAX_SIZE)
-    style = load_image(style_path, shape=[content.size(2), content.size(3)])
+        device = torch.device("cuda")
 
-    vgg = VGGNet().to(device)
+        # 加载图片
+        content = load_image(content_path, max_size=MAX_SIZE)
+        style = load_image(style_path, shape=[content.size(2), content.size(3)])
 
-    # 将concent复制一份作为target，并需要计算梯度，作为最终的输出
-    target = Variable(content.clone(), requires_grad=True)
-    optimizer = torch.optim.Adam([target], lr=LR)
+        vgg = VGGNet().to(device)
 
-    with torch.no_grad():
-        content_features = vgg(Variable(content))[3]
-        style_features = vgg(Variable(style))
+        # 将concent复制一份作为target，并需要计算梯度，作为最终的输出
+        target = Variable(content.clone(), requires_grad=True)
+        optimizer = torch.optim.Adam([target], lr=LR)
 
-    for epoch in range(EPOCH):
+        with torch.no_grad():
+            content_features = vgg(Variable(content))[3]
+            style_features = vgg(Variable(style))
 
-        content_loss = 0.0
-        style_loss = 0.0
+        for epoch in range(EPOCH):
 
-        target_features = vgg(target)
+            content_loss = 0.0
+            style_loss = 0.0
 
-        for f1, f2 in zip(target_features, style_features):
+            target_features = vgg(target)
 
-            _, d, h, w = f1.size()
+            for f1, f2 in zip(target_features, style_features):
 
-            # 将特征reshape成二维矩阵相乘，求gram矩阵
-            f1 = f1.view(d, h * w)
-            f2 = f2.view(d, h * w)
+                _, d, h, w = f1.size()
 
-            f1 = torch.mm(f1, f1.t())
-            f2 = torch.mm(f2, f2.t())
+                # 将特征reshape成二维矩阵相乘，求gram矩阵
+                f1 = f1.view(d, h * w)
+                f2 = f2.view(d, h * w)
 
-            # 计算style_loss
-            style_loss += torch.mean((f1 - f2) ** 2) / (d * h * w) / 5
+                f1 = torch.mm(f1, f1.t())
+                f2 = torch.mm(f2, f2.t())
 
-        # 计算content_loss
-        content_loss += torch.mean((content_features - target_features[3]) ** 2)
+                # 计算style_loss
+                style_loss += torch.mean((f1 - f2) ** 2) / (d * h * w) / 5
 
-        # 计算总的loss
-        loss = content_loss * ALPHA_BETA + style_loss
+            # 计算content_loss
+            content_loss += torch.mean((content_features - target_features[3]) ** 2)
 
-        optimizer.zero_grad()
-        loss.backward()
+            # 计算总的loss
+            loss = content_loss * ALPHA_BETA + style_loss
 
-        optimizer.step()
+            optimizer.zero_grad()
+            loss.backward()
 
-        if (epoch + 1) % 100 == 0:
-            print('Step: %4d / %4d  |  Content Loss:  %.4f  |  Style Loss:  %.4f'
-                  % (epoch + 1, EPOCH, content_loss, style_loss))
+            optimizer.step()
 
-        if (epoch + 1) % 10000 == 0:
-            # Save the generated image
-            img = target.clone().cpu().squeeze()
-            torchvision.utils.save_image(img, 'output-%d.png' % (epoch + 1))
+            if (epoch + 1) % 100 == 0:
+                print('Step: %4d / %4d  |  Content Loss:  %.4f  |  Style Loss:  %.4f'
+                      % (epoch + 1, EPOCH, content_loss, style_loss))
+
+            if (epoch + 1) % 2000 == 0 or 1:
+                # Save the generated image
+                img = target.clone().cpu().squeeze()
+                torchvision.utils.save_image(img, '%d-output-%d.png' % (count, (epoch + 1)))
