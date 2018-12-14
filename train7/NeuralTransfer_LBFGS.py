@@ -7,8 +7,8 @@ from PIL import Image
 import numpy as np
 
 
-ALPHA_BETA_LIST = [8 * 10 ** -4, 1 * 10 ** -4, 4 * 10 ** -4, 5 * 10 ** -3, 1 * 10 ** -3]
-EPOCH = 500
+ALPHA_BETA_LIST = [5 * 10 ** -3, 1 * 10 ** -3, 8 * 10 ** -3, 5 * 10 ** -2, 1 * 10 ** -2, 1 * 10 ** -4]
+EPOCH = 800
 MAX_SIZE = 200
 style_path = './picture/starry.jpg'
 content_path = './picture/house.jpg'
@@ -131,7 +131,6 @@ if __name__ == '__main__':
                 print('Step: %4d / %4d  |  Content Loss:  %.4f  |  Style Loss:  %.4f'
                       % (epoch + 1, EPOCH, content_loss, style_loss))
 
-            if (epoch + 1) % 500 == 0:
-                # Save the generated image
-                img = target.clone().cpu().squeeze()
-                torchvision.utils.save_image(img, '%d-output-%d.png' % (count, (epoch + 1)))
+        # Save the generated image
+        img = target.clone().cpu().squeeze()
+        torchvision.utils.save_image(img, '%d-output.png' % count)
