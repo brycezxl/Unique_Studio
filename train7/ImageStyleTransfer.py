@@ -6,11 +6,13 @@ import torch.nn as nn
 from torchvision import transforms
 import matplotlib.image as mpimg
 from torch.autograd import Variable
+import matplotlib.pyplot as plt
 
 
 ALPHA_BETA = 0.01
-EPOCH = 20
-WEIGHT = [1, 1, 1, 1, 1]
+LR = 0.01
+EPOCH = 1
+WEIGHT = [1/5, 1/5, 1/5, 1/5, 1/5]
 style_path = './picture/picasso.jpg'
 content_path = './picture/blue-moon-lake.jpg'
 
@@ -22,86 +24,66 @@ class Picture(nn.Module):
         super(Picture, self).__init__()
 
         self.picture_conv1_1 = nn.Conv2d(3, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-        self.picture_bn1_1 = nn.BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
         self.picture_conv1_2 = nn.Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-        self.picture_bn1_2 = nn.BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
         self.pool = nn.AvgPool2d(kernel_size=2, stride=2, padding=0, ceil_mode=False)  # same global pool
 
         self.picture_conv2_1 = nn.Conv2d(64, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-        self.picture_bn2_1 = nn.BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
         self.picture_conv2_2 = nn.Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-        self.picture_bn2_2 = nn.BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
 
         self.picture_conv3_1 = nn.Conv2d(128, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-        self.picture_bn3_1 = nn.BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
         self.picture_conv3_2 = nn.Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-        self.picture_bn3_2 = nn.BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
         self.picture_conv3_3 = nn.Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-        self.picture_bn3_3 = nn.BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
         self.picture_conv3_4 = nn.Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-        self.picture_bn3_4 = nn.BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
 
         self.picture_conv4_1 = nn.Conv2d(256, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-        self.picture_bn4_1 = nn.BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
         self.picture_conv4_2 = nn.Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-        self.picture_bn4_2 = nn.BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
         self.picture_conv4_3 = nn.Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-        self.picture_bn4_3 = nn.BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
         self.picture_conv4_4 = nn.Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-        self.picture_bn4_4 = nn.BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
 
         self.picture_conv5_1 = nn.Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-        self.picture_bn5_1 = nn.BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
-        self.picture_conv5_2 = nn.Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-        self.picture_bn5_2 = nn.BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
-        self.picture_conv5_3 = nn.Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-        self.picture_bn5_3 = nn.BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
-        self.picture_conv5_4 = nn.Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-        self.picture_bn5_4 = nn.BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
 
     def forward(self):
         picture_list = []
 
-        picture_in = f.relu(self.picture_bn1_1(self.picture_conv1_1(self.picture)))
-        picture_in = f.relu(self.picture_bn1_2(self.picture_conv1_2(picture_in)))
+        picture_in = f.relu(self.picture_conv1_1(self.picture))
         picture_list.append(picture_in)
+        picture_in = f.relu(self.picture_conv1_2(picture_in))
         picture_in = self.pool(picture_in)
-        picture_in = f.relu(self.picture_bn2_1(self.picture_conv2_1(picture_in)))
-        picture_in = f.relu(self.picture_bn2_2(self.picture_conv2_2(picture_in)))
+        picture_in = f.relu(self.picture_conv2_1(picture_in))
         picture_list.append(picture_in)
+        picture_in = f.relu(self.picture_conv2_2(picture_in))
         picture_in = self.pool(picture_in)
-        picture_in = f.relu(self.picture_bn3_1(self.picture_conv3_1(picture_in)))
-        picture_in = f.relu(self.picture_bn3_2(self.picture_conv3_2(picture_in)))
-        picture_in = f.relu(self.picture_bn3_3(self.picture_conv3_3(picture_in)))
-        picture_in = f.relu(self.picture_bn3_4(self.picture_conv3_4(picture_in)))
+        picture_in = f.relu(self.picture_conv3_1(picture_in))
         picture_list.append(picture_in)
+        picture_in = f.relu(self.picture_conv3_2(picture_in))
+        picture_in = f.relu(self.picture_conv3_3(picture_in))
+        picture_in = f.relu(self.picture_conv3_4(picture_in))
         picture_in = self.pool(picture_in)
-        picture_in = f.relu(self.picture_bn4_1(self.picture_conv4_1(picture_in)))
-        picture_in = f.relu(self.picture_bn4_2(self.picture_conv4_2(picture_in)))
-        picture_in = f.relu(self.picture_bn4_3(self.picture_conv4_3(picture_in)))
-        picture_in = f.relu(self.picture_bn4_4(self.picture_conv4_4(picture_in)))
+        picture_in = f.relu(self.picture_conv4_1(picture_in))
         picture_list.append(picture_in)
+        picture_in = f.relu(self.picture_conv4_2(picture_in))
+        pic_to_content = picture_in
+        picture_in = f.relu(self.picture_conv4_3(picture_in))
+        picture_in = f.relu(self.picture_conv4_4(picture_in))
         picture_in = self.pool(picture_in)
-        picture_in = f.relu(self.picture_bn5_1(self.picture_conv5_1(picture_in)))
-        picture_in = f.relu(self.picture_bn5_2(self.picture_conv5_2(picture_in)))
-        picture_in = f.relu(self.picture_bn5_3(self.picture_conv5_3(picture_in)))
-        picture_in = f.relu(self.picture_bn5_4(self.picture_conv5_4(picture_in)))
+        picture_in = f.relu(self.picture_conv5_1(picture_in))
         picture_list.append(picture_in)
+        picture_list.append(pic_to_content)
 
         return picture_list
 
     def ini_pic(self, height_inner, width_inner):
-        pic = np.random.randint(low=0, high=255, size=(height_inner, width_inner, 3))
-        pic = pic.astype(np.float32)
+        pic_in = np.random.random(size=(height_inner, width_inner, 3))
+        pic_in = pic_in.astype(np.float32)
         pic_transform = transforms.Compose(
             [
                 transforms.ToTensor()
             ]
         )
-        pic = pic_transform(pic).view(1, 3, height_inner, width_inner).to(device)
-        pic.requires_grad = True
+        pic_in = pic_transform(pic_in).view(1, 3, height_inner, width_inner).to(device)
+        pic_in.requires_grad = True
 
-        return pic
+        return pic_in
 
 
 class Content(nn.Module):
@@ -109,50 +91,34 @@ class Content(nn.Module):
     def __init__(self):
         super(Content, self).__init__()
         self.content_conv1_1 = nn.Conv2d(3, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-        self.content_bn1_1 = nn.BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
         self.content_conv1_2 = nn.Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-        self.content_bn1_2 = nn.BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
         self.pool = nn.AvgPool2d(kernel_size=2, stride=2, padding=0, ceil_mode=False)  # same global pool
 
         self.content_conv2_1 = nn.Conv2d(64, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-        self.content_bn2_1 = nn.BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
         self.content_conv2_2 = nn.Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-        self.content_bn2_2 = nn.BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
 
         self.content_conv3_1 = nn.Conv2d(128, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-        self.content_bn3_1 = nn.BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
         self.content_conv3_2 = nn.Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-        self.content_bn3_2 = nn.BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
         self.content_conv3_3 = nn.Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-        self.content_bn3_3 = nn.BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
         self.content_conv3_4 = nn.Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-        self.content_bn3_4 = nn.BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
 
         self.content_conv4_1 = nn.Conv2d(256, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-        self.content_bn4_1 = nn.BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
         self.content_conv4_2 = nn.Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-        self.content_bn4_2 = nn.BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
-        self.content_conv4_3 = nn.Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-        self.content_bn4_3 = nn.BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
-        self.content_conv4_4 = nn.Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-        self.content_bn4_4 = nn.BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
 
     def forward(self, content_in):
-        content_in = f.relu(self.content_bn1_1(self.content_conv1_1(content_in)))
-        content_in = f.relu(self.content_bn1_2(self.content_conv1_2(content_in)))
+        content_in = f.relu(self.content_conv1_1(content_in))
+        content_in = f.relu(self.content_conv1_2(content_in))
         content_in = self.pool(content_in)
-        content_in = f.relu(self.content_bn2_1(self.content_conv2_1(content_in)))
-        content_in = f.relu(self.content_bn2_2(self.content_conv2_2(content_in)))
+        content_in = f.relu(self.content_conv2_1(content_in))
+        content_in = f.relu(self.content_conv2_2(content_in))
         content_in = self.pool(content_in)
-        content_in = f.relu(self.content_bn3_1(self.content_conv3_1(content_in)))
-        content_in = f.relu(self.content_bn3_2(self.content_conv3_2(content_in)))
-        content_in = f.relu(self.content_bn3_3(self.content_conv3_3(content_in)))
-        content_in = f.relu(self.content_bn3_4(self.content_conv3_4(content_in)))
+        content_in = f.relu(self.content_conv3_1(content_in))
+        content_in = f.relu(self.content_conv3_2(content_in))
+        content_in = f.relu(self.content_conv3_3(content_in))
+        content_in = f.relu(self.content_conv3_4(content_in))
         content_in = self.pool(content_in)
-        content_in = f.relu(self.content_bn4_1(self.content_conv4_1(content_in)))
-        content_in = f.relu(self.content_bn4_2(self.content_conv4_2(content_in)))
-        content_in = f.relu(self.content_bn4_3(self.content_conv4_3(content_in)))
-        content_in = f.relu(self.content_bn4_4(self.content_conv4_4(content_in)))
+        content_in = f.relu(self.content_conv4_1(content_in))
+        content_in = f.relu(self.content_conv4_2(content_in))
 
         return content_in
 
@@ -162,70 +128,48 @@ class Style(nn.Module):
     def __init__(self):
         super(Style, self).__init__()
         self.style_conv1_1 = nn.Conv2d(3, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-        self.style_bn1_1 = nn.BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
         self.style_conv1_2 = nn.Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-        self.style_bn1_2 = nn.BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
         self.pool = nn.AvgPool2d(kernel_size=2, stride=2, padding=0, ceil_mode=False)  # same global pool
 
         self.style_conv2_1 = nn.Conv2d(64, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-        self.style_bn2_1 = nn.BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
         self.style_conv2_2 = nn.Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-        self.style_bn2_2 = nn.BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
 
         self.style_conv3_1 = nn.Conv2d(128, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-        self.style_bn3_1 = nn.BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
         self.style_conv3_2 = nn.Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-        self.style_bn3_2 = nn.BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
         self.style_conv3_3 = nn.Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-        self.style_bn3_3 = nn.BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
         self.style_conv3_4 = nn.Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-        self.style_bn3_4 = nn.BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
 
         self.style_conv4_1 = nn.Conv2d(256, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-        self.style_bn4_1 = nn.BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
         self.style_conv4_2 = nn.Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-        self.style_bn4_2 = nn.BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
         self.style_conv4_3 = nn.Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-        self.style_bn4_3 = nn.BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
         self.style_conv4_4 = nn.Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-        self.style_bn4_4 = nn.BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
 
         self.style_conv5_1 = nn.Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-        self.style_bn5_1 = nn.BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
-        self.style_conv5_2 = nn.Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-        self.style_bn5_2 = nn.BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
-        self.style_conv5_3 = nn.Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-        self.style_bn5_3 = nn.BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
-        self.style_conv5_4 = nn.Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-        self.style_bn5_4 = nn.BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
 
     def forward(self, style_in):
         style_list = []
 
-        style_in = f.relu(self.style_bn1_1(self.style_conv1_1(style_in)))
-        style_in = f.relu(self.style_bn1_2(self.style_conv1_2(style_in)))
+        style_in = f.relu(self.style_conv1_1(style_in))
+        style_in = f.relu(self.style_conv1_2(style_in))
         style_list.append(style_in)
         style_in = self.pool(style_in)
-        style_in = f.relu(self.style_bn2_1(self.style_conv2_1(style_in)))
-        style_in = f.relu(self.style_bn2_2(self.style_conv2_2(style_in)))
+        style_in = f.relu(self.style_conv2_1(style_in))
+        style_in = f.relu(self.style_conv2_2(style_in))
         style_list.append(style_in)
         style_in = self.pool(style_in)
-        style_in = f.relu(self.style_bn3_1(self.style_conv3_1(style_in)))
-        style_in = f.relu(self.style_bn3_2(self.style_conv3_2(style_in)))
-        style_in = f.relu(self.style_bn3_3(self.style_conv3_3(style_in)))
-        style_in = f.relu(self.style_bn3_4(self.style_conv3_4(style_in)))
+        style_in = f.relu(self.style_conv3_1(style_in))
+        style_in = f.relu(self.style_conv3_2(style_in))
+        style_in = f.relu(self.style_conv3_3(style_in))
+        style_in = f.relu(self.style_conv3_4(style_in))
         style_list.append(style_in)
         style_in = self.pool(style_in)
-        style_in = f.relu(self.style_bn4_1(self.style_conv4_1(style_in)))
-        style_in = f.relu(self.style_bn4_2(self.style_conv4_2(style_in)))
-        style_in = f.relu(self.style_bn4_3(self.style_conv4_3(style_in)))
-        style_in = f.relu(self.style_bn4_4(self.style_conv4_4(style_in)))
+        style_in = f.relu(self.style_conv4_1(style_in))
+        style_in = f.relu(self.style_conv4_2(style_in))
+        style_in = f.relu(self.style_conv4_3(style_in))
+        style_in = f.relu(self.style_conv4_4(style_in))
         style_list.append(style_in)
         style_in = self.pool(style_in)
-        style_in = f.relu(self.style_bn5_1(self.style_conv5_1(style_in)))
-        style_in = f.relu(self.style_bn5_2(self.style_conv5_2(style_in)))
-        style_in = f.relu(self.style_bn5_3(self.style_conv5_3(style_in)))
-        style_in = f.relu(self.style_bn5_4(self.style_conv5_4(style_in)))
+        style_in = f.relu(self.style_conv5_1(style_in))
         style_list.append(style_in)
 
         return style_list
@@ -233,7 +177,7 @@ class Style(nn.Module):
 
 def get_module(module_in):
 
-    vgg19 = models.vgg19_bn(pretrained=True)  # 加载vgg
+    vgg19 = models.vgg19(pretrained=True)  # 加载vgg
     key_list = []
     dic = {}
 
@@ -254,6 +198,18 @@ def get_module(module_in):
     return module_in
 
 
+def get_content_style():
+    content_module = get_module(Content()).to(device)
+    torch.save(content_module.state_dict(), 'content_module.pth')
+    style_module = get_module(Style()).to(device)
+    torch.save(style_module.state_dict(), 'style_module.pth')
+
+    content_in = content_module(content_pic)
+    style_in = style_module(style_pic)
+
+    return content_in, style_in
+
+
 class Loss(nn.Module):
     def __init__(self, alpha_in, beta_in, weight_in):
         super(Loss, self).__init__()
@@ -270,21 +226,22 @@ class Loss(nn.Module):
             style_now = style_list[i]
             picture_now = picture_list[i]
 
-            g = 0
-            a = 0
+            g_a = 0
 
             for filter1 in range(style_now.size(1)):
                 for filter2 in range(style_now.size(1)):
-                    g += torch.sum(picture_now[:, filter1, :, :] * picture_now[:, filter2, :, :])
-                    a += torch.sum(style_now[:, filter1, :, :] * style_now[:, filter2, :, :])
-            e_list.append((g - a) ** 2 / style_now.size(1) ** 2 / (style_now.size(2) * style_now.size(3)) ** 2 / 4)
+                    g = torch.sum(picture_now[:, filter1, :, :] * picture_now[:, filter2, :, :])
+                    a = torch.sum(style_now[:, filter1, :, :] * style_now[:, filter2, :, :])
+                    g_a += (g - a) ** 2
+
+            e_list.append(g_a / style_now.size(1) ** 2 / (style_now.size(2) * style_now.size(3)) ** 2 / 4)
 
         style_loss = 0
 
         for layer in range(5):
             style_loss += e_list[layer] * self.weight[layer]
 
-        prod = content_list[0] - picture_list[3]
+        prod = content_list[0] - picture_list[5]
         content_loss = 0.5 * torch.sum(prod * prod)
 
         loss_total = self.alpha * content_loss + self.beta * style_loss
@@ -324,27 +281,20 @@ def get_pic(style_path_in, content_path_in):
 
 if __name__ == '__main__':
 
+    print("Preparing for epochs...")
+
     device = torch.device("cuda")
 
     # get pictures
-    print('Getting pictures...')
     content_pic, style_pic, height, width = get_pic(style_path, content_path)
 
     with torch.no_grad():
 
         # create modules
-        print('Creating modules...')
-        content_module = get_module(Content()).to(device)
-        style_module = get_module(Style()).to(device)
         picture_module = get_module(Picture(height, width)).to(device)
+        torch.save(picture_module.state_dict(), 'picture_module.pth')
+        content, style = get_content_style()
 
-        # forward
-        print('Applying forward to content picture...')
-        content = content_module(content_pic)
-        print('Applying forward to style picture...')
-        style = style_module(style_pic)
-
-    print("Preparing for epochs...")
     # params process
     # BETA = torch.Tensor(1).to(device)
     # ALPHA = torch.Tensor(ALPHA_BETA)
@@ -352,7 +302,7 @@ if __name__ == '__main__':
 
     criterion = Loss(ALPHA_BETA, 1, WEIGHT).to(device)
     # optimizer = torch.optim.LBFGS(params=picture_module.parameters())
-    optimizer = torch.optim.Adam([picture_module.picture], lr=3)
+    optimizer = torch.optim.Adam([picture_module.picture], lr=LR)
     running_loss = 0
 
     print("Starting epochs...")
@@ -377,8 +327,15 @@ if __name__ == '__main__':
         # print(picture_module.picture.grad)
         # picture_module.picture.data -= 100 * picture_module.picture.grad
         optimizer.step()
-        print(picture_module.picture[0, 0, 0, 0], picture_module.picture[0, 1, 3, 3])
 
         if epoch % 1 == 0:  # print every 10 mini-batches
             print('EPOCH: %5d  Loss: %.6f' % (epoch + 1, running_loss / 1))
             running_loss = 0.0
+
+    device = torch.device("cpu")
+    pic = picture_module.picture.data.to(device).view(3, height, width)
+    pic = pic.numpy()
+    plt.imshow(np.transpose(pic, (1, 2, 0)))
+    plt.savefig('fig_plt.png')
+    plt.show()
+
