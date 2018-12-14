@@ -7,9 +7,9 @@ from PIL import Image
 import numpy as np
 
 
-ALPHA_BETA_LIST = [8 * 10 ** -3, 1 * 10 ** -2, 3 * 10 ** -2, 5 * 10 ** -2]
-EPOCH = 1000
-MAX_SIZE = 200
+ALPHA_BETA_LIST = [8 * 10 ** -3, 1 * 10 ** -2, 3 * 10 ** -2]
+EPOCH = 1500
+MAX_SIZE = 1200
 style_path = './picture/starry.jpg'
 content_path = './picture/house.jpg'
 
