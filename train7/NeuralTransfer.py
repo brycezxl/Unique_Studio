@@ -7,9 +7,9 @@ from PIL import Image
 import numpy as np
 
 
-ALPHA_BETA = 0.01
-EPOCH = 5000
-MAX_SIZE = 400
+ALPHA_BETA = 8 * 10 ** -4
+EPOCH = 10000
+MAX_SIZE = 300
 style_path = './picture/starry.jpg'
 content_path = './picture/house.jpg'
 
@@ -74,48 +74,59 @@ if __name__ == '__main__':
 
     # 将concent复制一份作为target，并需要计算梯度，作为最终的输出
     target = Variable(content.clone(), requires_grad=True)
-    optimizer = torch.optim.Adam([target])
+    optimizer = torch.optim.LBFGS([target])
 
     with torch.no_grad():
         content_features = vgg(Variable(content))[3]
         style_features = vgg(Variable(style))
 
     for epoch in range(EPOCH):
-        # 分别计算5个特征图
-        target_features = vgg(target)
 
         content_loss = 0.0
         style_loss = 0.0
 
-        for f1, f2 in zip(target_features, style_features):
+        def closure():
 
-            _, d, h, w = f1.size()
+            target_features = vgg(target)
 
-            # 将特征reshape成二维矩阵相乘，求gram矩阵
-            f1 = f1.view(d, h * w)
-            f2 = f2.view(d, h * w)
+            global content_loss
+            global style_loss
 
-            f1 = torch.mm(f1, f1.t())
-            f2 = torch.mm(f2, f2.t())
+            style_loss = 0.0
+            content_loss = 0.0
 
-            # 计算style_loss
-            style_loss += torch.mean((f1 - f2) ** 2) / (d * h * w) / 5
+            for f1, f2 in zip(target_features, style_features):
 
-        # 计算content_loss
-        content_loss += torch.mean((content_features - target_features[3]) ** 2)
+                _, d, h, w = f1.size()
 
-        # 计算总的loss
-        loss = content_loss * ALPHA_BETA + style_loss
+                # 将特征reshape成二维矩阵相乘，求gram矩阵
+                f1 = f1.view(d, h * w)
+                f2 = f2.view(d, h * w)
 
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
+                f1 = torch.mm(f1, f1.t())
+                f2 = torch.mm(f2, f2.t())
 
-        if (epoch + 1) % 5 == 0:
+                # 计算style_loss
+                style_loss += torch.mean((f1 - f2) ** 2) / (d * h * w) / 5
+
+            # 计算content_loss
+            content_loss += torch.mean((content_features - target_features[3]) ** 2)
+
+            # 计算总的loss
+            loss = content_loss * ALPHA_BETA + style_loss
+
+            optimizer.zero_grad()
+            loss.backward()
+
+            return loss
+
+        optimizer.step(closure)
+
+        if (epoch + 1) % 50 == 0:
             print('Step: %4d / %4d  |  Content Loss:  %.4f  |  Style Loss:  %.4f'
-                  % (epoch + 1, EPOCH, content_loss, style_loss.data))
+                  % (epoch + 1, EPOCH, content_loss, style_loss))
 
-        if (epoch + 1) % 200 == 0:
+        if (epoch + 1) % 2000 == 0:
             # Save the generated image
             img = target.clone().cpu().squeeze()
             torchvision.utils.save_image(img, 'output-%d.png' % (epoch + 1))
