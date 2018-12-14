@@ -8,8 +8,8 @@ import numpy as np
 
 
 ALPHA_BETA = 8 * 10 ** -4
-EPOCH = 10000
-MAX_SIZE = 300
+EPOCH = 2000
+MAX_SIZE = 200
 style_path = './picture/starry.jpg'
 content_path = './picture/house.jpg'
 
