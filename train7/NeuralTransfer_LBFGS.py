@@ -8,7 +8,7 @@ import numpy as np
 
 
 ALPHA_BETA_LIST = [8 * 10 ** -4, 1 * 10 ** -4, 4 * 10 ** -4, 5 * 10 ** -3, 1 * 10 ** -3]
-EPOCH = 1500
+EPOCH = 500
 MAX_SIZE = 200
 style_path = './picture/starry.jpg'
 content_path = './picture/house.jpg'

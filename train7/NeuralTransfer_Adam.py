@@ -8,7 +8,7 @@ import numpy as np
 
 
 ALPHA_BETA_LIST = [8 * 10 ** -4, 1 * 10 ** -4, 4 * 10 ** -4, 5 * 10 ** -3, 1 * 10 ** -3]
-EPOCH = 1
+EPOCH = 10000
 MAX_SIZE = 200
 LR = 0.03
 style_path = './picture/starry.jpg'
@@ -121,7 +121,7 @@ if __name__ == '__main__':
                 print('Step: %4d / %4d  |  Content Loss:  %.4f  |  Style Loss:  %.4f'
                       % (epoch + 1, EPOCH, content_loss, style_loss))
 
-            if (epoch + 1) % 2000 == 0 or 1:
+            if (epoch + 1) % 5000 == 0:
                 # Save the generated image
                 img = target.clone().cpu().squeeze()
                 torchvision.utils.save_image(img, '%d-output-%d.png' % (count, (epoch + 1)))
