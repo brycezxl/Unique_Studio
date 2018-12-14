@@ -5,6 +5,7 @@ import torch.nn.functional as f
 import torch.nn as nn
 from torchvision import transforms
 import matplotlib.image as mpimg
+from torch.autograd import Variable
 
 
 ALPHA_BETA = 0.01
@@ -17,7 +18,7 @@ content_path = './picture/blue-moon-lake.jpg'
 class Picture(nn.Module):
 
     def __init__(self, height_in, width_in):
-        self.picture = self.ini_pic(height_in, width_in)
+        self.picture = Variable(self.ini_pic(height_in, width_in), requires_grad=True)
         super(Picture, self).__init__()
 
         self.picture_conv1_1 = nn.Conv2d(3, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
@@ -265,6 +266,7 @@ class Loss(nn.Module):
         e_list = []
 
         for i in range(5):
+
             style_now = style_list[i]
             picture_now = picture_list[i]
 
@@ -322,7 +324,7 @@ def get_pic(style_path_in, content_path_in):
 
 if __name__ == '__main__':
 
-    device = torch.device("cpu")
+    device = torch.device("cuda")
 
     # get pictures
     print('Getting pictures...')
@@ -349,26 +351,34 @@ if __name__ == '__main__':
     # weight = torch.Tensor(WEIGHT)
 
     criterion = Loss(ALPHA_BETA, 1, WEIGHT).to(device)
-    optimizer = torch.optim.LBFGS(params=picture_module.parameters())
-
+    # optimizer = torch.optim.LBFGS(params=picture_module.parameters())
+    optimizer = torch.optim.Adam([picture_module.picture], lr=3)
     running_loss = 0
 
     print("Starting epochs...")
     for epoch in range(EPOCH):
 
-        def closure():
-            optimizer.zero_grad()
-            outputs = picture_module()
-            loss = criterion(style, outputs, content)
-            loss.backward()
-            global running_loss
-            running_loss += loss.item()
-            return loss
+        # def closure():
+        #     optimizer.zero_grad()
+        #     outputs = picture_module()
+        #     loss = criterion(style, outputs, content)
+        #     loss.backward()
+        #     global running_loss
+        #     running_loss += loss.item()
+        #     return loss
+        #
+        # optimizer.step(closure)
 
-        optimizer.step(closure)
-        print(picture_module.picture[0, 0, 0, 0], picture_module.picture[0, 1, 3, 3], picture_module.picture[0, 0, 99, 99])
+        optimizer.zero_grad()
+        outputs = picture_module()
+        loss = criterion(style, outputs, content)
+        loss.backward()
+        running_loss += loss.item()
+        # print(picture_module.picture.grad)
+        # picture_module.picture.data -= 100 * picture_module.picture.grad
+        optimizer.step()
+        print(picture_module.picture[0, 0, 0, 0], picture_module.picture[0, 1, 3, 3])
 
         if epoch % 1 == 0:  # print every 10 mini-batches
-            print('EPOCH: %5d  Loss: %.6f' %
-                  (epoch + 1, running_loss / 1))
+            print('EPOCH: %5d  Loss: %.6f' % (epoch + 1, running_loss / 1))
             running_loss = 0.0
