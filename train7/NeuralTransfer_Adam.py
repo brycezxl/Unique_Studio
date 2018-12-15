@@ -9,7 +9,7 @@ import numpy as np
 
 ALPHA_BETA_LIST = [1 * 10 ** -4, 5 * 10 ** -4, 8 * 10 ** -4]
 EPOCH = 60000
-MAX_SIZE = 600
+MAX_SIZE = 300
 style_path = './picture/starry.jpg'
 content_path = './picture/house.jpg'
 
@@ -116,9 +116,14 @@ if __name__ == '__main__':
 
             optimizer.step()
 
-            if (epoch + 1) % 500 == 0:
+            if (epoch + 1) % 50 == 0:
                 print('Step: %4d / %4d  |  Content Loss:  %.4f  |  Style Loss:  %.4f'
                       % (epoch + 1, EPOCH, content_loss, style_loss))
+
+            if (epoch + 1) % 20000 == 0:
+                # Save the generated image
+                img = target.clone().cpu().squeeze()
+                torchvision.utils.save_image(img, '%d-output.png' % epoch)
 
         # Save the generated image
         img = target.clone().cpu().squeeze()

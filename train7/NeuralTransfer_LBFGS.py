@@ -7,8 +7,9 @@ from PIL import Image
 import numpy as np
 
 
-ALPHA_BETA_LIST = [8 * 10 ** -3, 1 * 10 ** -2, 3 * 10 ** -2]
-EPOCH = 1500
+ALPHA_BETA_LIST = [8 * 10 ** -4]
+WEIGHT = [0.15, 0.15, 0.15, 0.15, 0.4]
+EPOCH = 2000
 MAX_SIZE = 1200
 style_path = './picture/starry.jpg'
 content_path = './picture/house.jpg'
@@ -77,7 +78,7 @@ if __name__ == '__main__':
 
         vgg = VGGNet().to(device)
 
-        # 将concent复制一份作为target，并需要计算梯度，作为最终的输出
+        # 将content复制一份作为target，并需要计算梯度，作为最终的输出
         target = Variable(content.clone(), requires_grad=True)
         optimizer = torch.optim.LBFGS([target])
 
@@ -100,7 +101,7 @@ if __name__ == '__main__':
                 style_loss = 0.0
                 content_loss = 0.0
 
-                for f1, f2 in zip(target_features, style_features):
+                for f1, f2, weight in zip(target_features, style_features, WEIGHT):
 
                     _, d, h, w = f1.size()
 
@@ -112,7 +113,7 @@ if __name__ == '__main__':
                     f2 = torch.mm(f2, f2.t())
 
                     # 计算style_loss
-                    style_loss += torch.mean((f1 - f2) ** 2) / (d * h * w) / 5
+                    style_loss += torch.mean((f1 - f2) ** 2) / (d * h * w) * weight
 
                 # 计算content_loss
                 content_loss += torch.mean((content_features - target_features[3]) ** 2)
@@ -130,6 +131,11 @@ if __name__ == '__main__':
             if (epoch + 1) % 50 == 0:
                 print('Step: %4d / %4d  |  Content Loss:  %.4f  |  Style Loss:  %.4f'
                       % (epoch + 1, EPOCH, content_loss, style_loss))
+
+            if (epoch + 1) % 500 == 0:
+                # Save the generated image
+                img = target.clone().cpu().squeeze()
+                torchvision.utils.save_image(img, '%d-output.png' % (epoch + 1))
 
         # Save the generated image
         img = target.clone().cpu().squeeze()
