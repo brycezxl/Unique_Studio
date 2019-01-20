@@ -39,8 +39,8 @@ def aclimbd(text_field, label_field):
     fields = [("text", text_field), ("label", label_field)]
 
     # 读取所有txt
-    text_name = glob.glob('imdb/aclImdb/train/pos/*.txt')
-    text_name.extend(glob.glob('imdb/aclImdb/train/neg/*.txt'))
+    text_name = glob.glob(r'imdb/aclImdb/train/pos/*.txt')
+    text_name.extend(glob.glob(r'imdb/aclImdb/train/neg/*.txt'))
 
     # 初始化数组
     text_array = np.zeros((len(text_name), 2)).astype(dtype=str)
