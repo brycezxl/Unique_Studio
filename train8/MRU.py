@@ -105,12 +105,22 @@ class MRU(nn.Module):
         self._wo_mru_encoder = (torch.rand((DIM, DIM), requires_grad=True) / 6).to(device)  # 循环网络
         self._bo_mru_encoder = (torch.rand((1, DIM), requires_grad=True) / 6).to(device)  # 循环网络
 
+        # Bi-Attn
+        self._w1_bi_attn = (torch.rand((DIM, DIM), requires_grad=True) / 6).to(device)
+        self._w2_bi_attn = (torch.rand((DIM, DIM), requires_grad=True) / 6).to(device)
+        self._w3_bi_attn = (torch.rand((DIM, DIM), requires_grad=True) / 6).to(device)
+
+        # Answer Selection
+        self._w1_answer_selection = (torch.rand(((2 * DIM), (2 * DIM)), requires_grad=True) / 6).to(device)
+        self._b1_answer_selection = (torch.rand((1, (2 * DIM)), requires_grad=True) / 6).to(device)
+        self._w2_answer_selection = (torch.rand(((2 * DIM), (2 * DIM)), requires_grad=True) / 6).to(device)
+        self._b2_answer_selection = (torch.rand((1, (2 * DIM)), requires_grad=True) / 6).to(device)
+
         self.embedding = nn.Embedding(num_embeddings=len(ARTICLES.vocab), embedding_dim=DIM)
-        pass
 
     def forward(self, option1_in, option2_in, option3_in, option4_in, question_in, article_in):
 
-        # embedding
+        # Input Encoding
         article_in = self.embedding(article_in)
         option1_in = self.embedding(option1_in)
         option2_in = self.embedding(option2_in)
@@ -121,14 +131,31 @@ class MRU(nn.Module):
         # MRU Encoding
         article_in = self._mru(article_in)
 
-        # BiAttention
+        # Bi-Attention Layer
+        a = torch.zeros((4, BATCH_SIZE, (2 * DIM)))  # 最终的向量
+        article_on_question, _ = self._bi_attention(article_in, question_in, mode=0)
+        for (option_in, num) in [(option1_in, 0), (option2_in, 1), (option3_in, 2), (option4_in, 3)]:
+            article_on_question_option, option_on_article = self._bi_attention(article_on_question, option_in, mode=1)
+            # Concat
+            a[num, :, :] = self._concat(article_on_question_option, option_on_article)
+
+        # Answer Selection
+        answer_pred = self._answer_selection(a)
+
+        return answer_pred
 
     def _mru(self, inputs_mru):
+        """
+        mru encoding
+        """
         gate_mru = self._mru_multi_ranged_reasoning(inputs_mru)
         outputs_mru = self._mru_encoding(gate_mru, inputs_mru)
         return outputs_mru
 
     def _mru_contract_expand(self, inputs_c_e):
+        """
+        contract-expand
+        """
         new_inputs_c_e = 1
 
         # contract-expand
@@ -178,6 +205,10 @@ class MRU(nn.Module):
         return new_inputs_c_e
 
     def _mru_multi_ranged_reasoning(self, inputs_reasoning):
+        """
+        contract-expand-reason
+        """
+
         outputs_reasoning = torch.zeros_like(inputs_reasoning)
 
         # every batch
@@ -202,7 +233,9 @@ class MRU(nn.Module):
         return outputs_reasoning
 
     def _mru_encoding(self, gate_encoding, inputs_encoding):
-
+        """
+        把之前生成的gate和输入inputs放在一起过一遍类似rnn的网络
+        """
         outputs_encoding = torch.zeros_like(inputs_encoding)
 
         for batch in range(inputs_encoding.size(0)):     # 每个batch
@@ -210,16 +243,79 @@ class MRU(nn.Module):
             temp_gate_encoding = gate_encoding[batch, :, :].squeeze()
             c = 0          # cell
             for time in range(inputs_encoding.size(1)):          # 每个时间点
-                z = f.tanh(self._wz_mru_encoder.mm(temp_inputs_encoding[time, :])) + self._bz_mru_encoder  # pre
+                z = torch.tanh(temp_inputs_encoding[time, :].unsqueeze(0).mm(self._wz_mru_encoder)) + self._bz_mru_encoder  # pre
                 c = temp_gate_encoding[time, :] * c + (1 - temp_gate_encoding[time, :]) * z                # cell
-                o = f.tanh(self._wo_mru_encoder.mm(temp_inputs_encoding[time, :])) + self._bo_mru_encoder  # output gate
+                o = torch.tanh(temp_inputs_encoding[time, :].unsqueeze(0).mm(self._wo_mru_encoder)) + self._bo_mru_encoder  # output gate
                 h = o * c           # hidden state + output
                 outputs_encoding[batch, time, :] = h
 
         return outputs_encoding
 
-    def _bi_attn(self):
-        return 0
+    def _bi_attention(self, input1, input2, mode):
+
+        if mode == 0:
+            # input1是article, input2是question，只算article on question
+            article_on_question_attn = self._one_way_attention(input1, input2, self._w1_bi_attn)
+            return article_on_question_attn
+
+        elif mode == 1:
+            # input1是article, input2是option, bi-attn
+            article_on_option_attn = self._one_way_attention(input1, input2, self._w2_bi_attn)
+            option_on_article_attn = self._one_way_attention(input1, input2, self._w3_bi_attn)
+            return article_on_option_attn, option_on_article_attn
+
+        else:
+            raise AttributeError("Wrong mode!")
+
+    def _one_way_attention(self, main_input, attn_input, w_input):
+
+        main_on_attn = torch.zeros_like(main_input)
+
+        for batch_attn in range(main_input.size(0)):       # 每一个batch
+
+            for time_attn in range(main_input.size(1)):     # 每一个时间点（main input 的每个单词）
+
+                # score
+                attn_score = torch.zeros((attn_input.size(1)))
+                for word_in_attn in range(attn_input.size(1)):     # 给每一个attn input的单词打分
+                    attn_score[word_in_attn] = (attn_input[batch_attn, word_in_attn, :].unsqueeze(0).mm(w_input)
+                                                .mm(main_input[batch_attn, time_attn, :].unsqueeze(0).t()))
+                # norm
+                attn_score = f.softmax(attn_score)
+
+                # get
+                for word_in_attn in range(attn_input.size(1)):
+                    main_on_attn[batch_attn, time_attn, :] += (attn_score[word_in_attn]
+                                                               * attn_input[batch_attn, word_in_attn, :])
+        return main_on_attn
+
+    def _concat(self, article_concat, options_concat):
+        new_article_concat = torch.zeros((article_concat.size(0), DIM))
+        new_options_concat = torch.zeros((article_concat.size(0), DIM))
+
+        for batch in range(article_concat.size(0)):       # batch
+
+            for word in range(article_concat.size(1)):    # 求每个word的和
+                new_article_concat[batch, :] += article_concat[batch, word, :]
+
+            for word in range(options_concat.size(1)):      # 求每个word的和
+                new_options_concat[batch, :] += options_concat[batch, word, :]
+
+        final_concat = torch.cat((new_article_concat, new_options_concat), 1)
+        return final_concat
+
+    def _answer_selection(self, answer_vector):
+        answer_selected = torch.zeros((answer_vector.size(1)))
+        answer_temp = torch.zeros((answer_vector.size(0)))
+        for batch in range(answer_vector.size(1)):
+            for option in range(answer_vector.size(0)):
+                answer_temp[option] = f.relu(answer_vector[option, batch, :].unsqueeze(0)
+                                             .mm(self._w1_answer_selection)) + self._b1_answer_selection
+                answer_temp[option] = f.softmax(answer_vector[option, batch, :].unsqueeze(0)
+                                                .mm(self._w2_answer_selection) + self._b2_answer_selection)
+            answer_selected[batch] = torch.argmax(f.softmax(answer_temp))
+
+        return answer_selected
 
 
 if __name__ == "__main__":
