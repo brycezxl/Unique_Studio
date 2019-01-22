@@ -1,4 +1,3 @@
-import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as f
@@ -8,10 +7,11 @@ import glob
 import re
 __all__ = torch
 
-BATCH_SIZE = 64
-EPOCH = 10
+BATCH_SIZE = 2
+EPOCH = 1
 LEARNING_RATE = 0.0003
 DIM = 300
+device = torch.device("cuda")  # GPU
 
 
 def get_race(train_data=1):
@@ -29,9 +29,6 @@ def get_race(train_data=1):
         txt_path = r"RACE/dev/middle/"
 
     text_name = glob.glob(r"%s*.txt" % txt_path)
-    max_question = 0
-    max_option = 0
-    max_artcile = 0
     for p in range(len(text_name)):
         # 分别打开每一个txt
         with open("%s" % text_name[p]) as file:
@@ -85,91 +82,31 @@ def get_race(train_data=1):
     return examples
 
 
-class MRU(nn.Module):
+# MRU #
+class ContractExpand(nn.Module):
     def __init__(self):
-        super(MRU, self).__init__()
-
+        super(ContractExpand, self).__init__()
         # MRU Encoder
         self._r_mru_encoder = torch.tensor([1, 2, 4, 10, 25], requires_grad=False)
-        self._w_mru_encoder = [torch.rand((DIM, DIM), requires_grad=True) /
-                               6 for _ in range(len(self._r_mru_encoder))]                            # 每个r一个w
-        self._b_mru_encoder = [torch.rand((1, DIM), requires_grad=True) /
-                               6 for _ in range(len(self._r_mru_encoder))]                            # 每个r一个b
-        self._w1_mru_encoder = (torch.rand((3, len(self._r_mru_encoder))
-                                          , requires_grad=True) / 6).to(device)                       # 串联后的神经网络
-        self._b1_mru_encoder = (torch.rand((3, DIM), requires_grad=True) / 6).to(device)
-        self._w2_mru_encoder = (torch.rand((1, 3), requires_grad=True) / 6).to(device)
-        self._b2_mru_encoder = (torch.rand((1, DIM), requires_grad=True) / 6).to(device)
-        self._wz_mru_encoder = (torch.rand((DIM, DIM), requires_grad=True) / 6).to(device)              # 循环网络
-        self._bz_mru_encoder = (torch.rand((1, DIM), requires_grad=True) / 6).to(device)              # 循环网络
-        self._wo_mru_encoder = (torch.rand((DIM, DIM), requires_grad=True) / 6).to(device)  # 循环网络
-        self._bo_mru_encoder = (torch.rand((1, DIM), requires_grad=True) / 6).to(device)  # 循环网络
+        self._f1_mru = nn.Linear(DIM, DIM)
+        self._f2_mru = nn.Linear(DIM, DIM)
+        self._f3_mru = nn.Linear(DIM, DIM)
+        self._f4_mru = nn.Linear(DIM, DIM)
+        self._f5_mru = nn.Linear(DIM, DIM)
 
-        # Bi-Attn
-        self._w1_bi_attn = (torch.rand((DIM, DIM), requires_grad=True) / 6).to(device)
-        self._w2_bi_attn = (torch.rand((DIM, DIM), requires_grad=True) / 6).to(device)
-        self._w3_bi_attn = (torch.rand((DIM, DIM), requires_grad=True) / 6).to(device)
-
-        # Answer Selection
-        self._w1_answer_selection = (torch.rand(((2 * DIM), (2 * DIM)), requires_grad=True) / 6).to(device)
-        self._b1_answer_selection = (torch.rand((1, (2 * DIM)), requires_grad=True) / 6).to(device)
-        self._w2_answer_selection = (torch.rand(((2 * DIM), (2 * DIM)), requires_grad=True) / 6).to(device)
-        self._b2_answer_selection = (torch.rand((1, (2 * DIM)), requires_grad=True) / 6).to(device)
-
-        self.embedding = nn.Embedding(num_embeddings=len(ARTICLES.vocab), embedding_dim=DIM)
-
-    def forward(self, option1_in, option2_in, option3_in, option4_in, question_in, article_in):
-
-        # Input Encoding
-        article_in = self.embedding(article_in)
-        option1_in = self.embedding(option1_in)
-        option2_in = self.embedding(option2_in)
-        option3_in = self.embedding(option3_in)
-        option4_in = self.embedding(option4_in)
-        question_in = self.embedding(question_in)
-
-        # MRU Encoding
-        article_in = self._mru(article_in)
-
-        # Bi-Attention Layer
-        a = torch.zeros((4, BATCH_SIZE, (2 * DIM)))  # 最终的向量
-        article_on_question, _ = self._bi_attention(article_in, question_in, mode=0)
-        for (option_in, num) in [(option1_in, 0), (option2_in, 1), (option3_in, 2), (option4_in, 3)]:
-            article_on_question_option, option_on_article = self._bi_attention(article_on_question, option_in, mode=1)
-            # Concat
-            a[num, :, :] = self._concat(article_on_question_option, option_on_article)
-
-        # Answer Selection
-        answer_pred = self._answer_selection(a)
-
-        return answer_pred
-
-    def _mru(self, inputs_mru):
-        """
-        mru encoding
-        """
-        gate_mru = self._mru_multi_ranged_reasoning(inputs_mru)
-        outputs_mru = self._mru_encoding(gate_mru, inputs_mru)
-        return outputs_mru
-
-    def _mru_contract_expand(self, inputs_c_e):
-        """
-        contract-expand
-        """
+    def forward(self, inputs_c_e):
         new_inputs_c_e = 1
 
         # contract-expand
-        for r, w, b in zip(self._r_mru_encoder, self._w_mru_encoder, self._b_mru_encoder):
+        for r, func in zip(self._r_mru_encoder, [self._f1_mru, self._f2_mru, self._f3_mru, self._f4_mru, self._f5_mru]):
 
             # gpu
             r = r.to(device)
-            w = w.to(device)
-            b = b.to(device)
 
             # contract
             groups = int(inputs_c_e.size(0) / r)  # 整除组
             rest = inputs_c_e.size(0) - r * groups  # 余数组
-            word_temp = torch.zeros(((groups + int(rest != 0)), DIM))  # 临时储存压缩数组
+            word_temp = torch.zeros(((groups + int(rest != 0)), DIM)).to(device)  # 临时储存压缩数组
             word_new = torch.zeros_like(inputs_c_e).to(device)  # 展开后的新数组
 
             # 整除组contract + 处理
@@ -178,14 +115,14 @@ class MRU(nn.Module):
                 for p in range((r * group), (r * (group + 1))):
                     sum_group += inputs_c_e[p, :]
                 sum_group = sum_group.unsqueeze(0).to(device)
-                word_temp[group, :] = f.relu(sum_group.mm(w)) + b  # 对r组词的和操作一番
+                word_temp[group, :] = f.relu(func(sum_group))  # 对r组词的和操作一番
             # 余数组contract + 处理
             if rest != 0:
                 sum_group = 0
                 for p in range((r * groups), (r * groups + rest)):
                     sum_group += inputs_c_e[p, :]
                 sum_group = sum_group.unsqueeze(0).to(device)
-                word_temp[groups, :] = f.relu((sum_group * r / rest).mm(w)) + b
+                word_temp[groups, :] = f.relu(func(sum_group * r / rest))
 
             # 整除组expand
             for group in range(groups):
@@ -198,90 +135,101 @@ class MRU(nn.Module):
 
             # 处理完成并入大数组
             if isinstance(new_inputs_c_e, int):
-                new_inputs_c_e = word_new
+                new_inputs_c_e = word_new.to(device)
             else:
-                new_inputs_c_e = torch.cat((new_inputs_c_e, word_new), 0)
+                new_inputs_c_e = torch.cat((new_inputs_c_e, word_new), 0).to(device)
 
         return new_inputs_c_e
 
-    def _mru_multi_ranged_reasoning(self, inputs_reasoning):
-        """
-        contract-expand-reason
-        """
 
-        outputs_reasoning = torch.zeros_like(inputs_reasoning)
+class MultiRangedReasoning(nn.Module):
+    def __init__(self):
+        super(MultiRangedReasoning, self).__init__()
+        self._1_mru_contract_expand = nn.Linear(5, 3)
+        self._2_mru_contract_expand = nn.Linear(3, 1)
+        self._mru_contract_expand = ContractExpand().to(device)
+
+    def forward(self, inputs_reasoning):
+        outputs_reasoning = torch.zeros_like(inputs_reasoning).to(device)
 
         # every batch
         for batch in range(inputs_reasoning.size(0)):
 
-            inputs_now = inputs_reasoning[batch, :, :].squeeze()  # 去掉第一维
-            new_inputs = self._mru_contract_expand(inputs_now)
+            new_inputs = self._mru_contract_expand(inputs_reasoning[batch, :, :]).to(device)
 
             # 合并后过两层神经网络
-            for word in range(int(new_inputs.size(0) / len(self._r_mru_encoder))):  # 每个词
+            for word in range(int(new_inputs.size(0) / 5)):  # 每个词
                 word_pre = 0
-                for r1 in range(len(self._r_mru_encoder)):  # 把一个词的r个表示串联
+                for r1 in range(5):  # 把一个词的r个表示串联
                     if isinstance(word_pre, int):
-                        word_pre = new_inputs[(int(r1 * inputs_now.size(0)) + word), :].unsqueeze(0)
+                        word_pre = new_inputs[(int(r1 * inputs_reasoning[batch, :, :].size(0)) + word), :].unsqueeze(0).to(device)
                     else:
                         word_pre = torch.cat((word_pre,
-                                              new_inputs[(int(r1 * inputs_now.size(0)) + word), :].unsqueeze(0)), 0)
+                                              new_inputs[(int(r1 * inputs_reasoning[batch, :, :].size(0)) + word), :].unsqueeze(0)), 0).to(device)
 
-                word_pre = f.relu(self._w1_mru_encoder.mm(word_pre) + self._b1_mru_encoder)
-                outputs_reasoning[batch, word, :] = f.relu(self._w2_mru_encoder.mm(word_pre) + self._b2_mru_encoder)
+                word_pre = f.relu(self._1_mru_contract_expand(word_pre.t())).t()
+                outputs_reasoning[batch, word, :] = f.relu(self._2_mru_contract_expand(word_pre.t())).t()
 
-        return outputs_reasoning
+        return outputs_reasoning.to(device)
 
-    def _mru_encoding(self, gate_encoding, inputs_encoding):
-        """
-        把之前生成的gate和输入inputs放在一起过一遍类似rnn的网络
-        """
-        outputs_encoding = torch.zeros_like(inputs_encoding)
 
-        for batch in range(inputs_encoding.size(0)):     # 每个batch
-            temp_inputs_encoding = inputs_encoding[batch, :, :].squeeze()
-            temp_gate_encoding = gate_encoding[batch, :, :].squeeze()
-            c = 0          # cell
-            for time in range(inputs_encoding.size(1)):          # 每个时间点
-                z = torch.tanh(temp_inputs_encoding[time, :].unsqueeze(0).mm(self._wz_mru_encoder)) + self._bz_mru_encoder  # pre
-                c = temp_gate_encoding[time, :] * c + (1 - temp_gate_encoding[time, :]) * z                # cell
-                o = torch.tanh(temp_inputs_encoding[time, :].unsqueeze(0).mm(self._wo_mru_encoder)) + self._bo_mru_encoder  # output gate
-                h = o * c           # hidden state + output
-                outputs_encoding[batch, time, :] = h
+class Encoding(nn.Module):
+    def __init__(self):
+        super(Encoding, self).__init__()
+        self._fz_mru = nn.Linear(DIM, DIM)
+        self._fo_mru = nn.Linear(DIM, DIM)
+
+    def forward(self, gate_encoding, inputs_encoding):
+        outputs_encoding = torch.zeros_like(inputs_encoding).to(device)
+
+        for batch in range(inputs_encoding.size(0)):  # 每个batch
+            temp_inputs_encoding = inputs_encoding[batch, :, :].squeeze().to(device)
+            temp_gate_encoding = gate_encoding[batch, :, :].squeeze().to(device)
+            c = 0  # cell
+            for time in range(inputs_encoding.size(1)):  # 每个时间点
+                z = torch.tanh(self._fz_mru(temp_inputs_encoding[time, :].unsqueeze(0))).to(device)  # pre
+                c = temp_gate_encoding[time, :] * c + (1 - temp_gate_encoding[time, :]).to(device) * z  # cell
+                o = torch.tanh(self._fo_mru(temp_inputs_encoding[time, :].unsqueeze(0))).to(device)  # output gate
+                h = o * c  # hidden state + output
+                outputs_encoding[batch, time, :] = h.to(device)
 
         return outputs_encoding
 
-    def _bi_attention(self, input1, input2, mode):
 
-        if mode == 0:
-            # input1是article, input2是question，只算article on question
-            article_on_question_attn = self._one_way_attention(input1, input2, self._w1_bi_attn)
-            return article_on_question_attn
+class MRUEncoding(nn.Module):
+    def __init__(self):
+        super(MRUEncoding, self).__init__()
+        self._mru_multi_ranged_reasoning = MultiRangedReasoning().to(device)
+        self._mru_encoding = Encoding().to(device)
 
-        elif mode == 1:
-            # input1是article, input2是option, bi-attn
-            article_on_option_attn = self._one_way_attention(input1, input2, self._w2_bi_attn)
-            option_on_article_attn = self._one_way_attention(input1, input2, self._w3_bi_attn)
-            return article_on_option_attn, option_on_article_attn
+    def forward(self, inputs_mru):
+        gate_mru = self._mru_multi_ranged_reasoning(inputs_mru).to(device)
+        outputs_mru = self._mru_encoding(gate_mru, inputs_mru).to(device)
+        return outputs_mru.to(device)
+# End #
 
-        else:
-            raise AttributeError("Wrong mode!")
 
-    def _one_way_attention(self, main_input, attn_input, w_input):
+# Attention #
+class Attention(nn.Module):
+    def __init__(self):
+        super(Attention, self).__init__()
 
-        main_on_attn = torch.zeros_like(main_input)
+    def forward(self, main_input, attn_input, f_input):
+
+        main_on_attn = torch.zeros_like(main_input).to(device)
 
         for batch_attn in range(main_input.size(0)):       # 每一个batch
 
             for time_attn in range(main_input.size(1)):     # 每一个时间点（main input 的每个单词）
 
                 # score
-                attn_score = torch.zeros((attn_input.size(1)))
+                attn_score = torch.zeros((attn_input.size(1))).to(device)
+
                 for word_in_attn in range(attn_input.size(1)):     # 给每一个attn input的单词打分
-                    attn_score[word_in_attn] = (attn_input[batch_attn, word_in_attn, :].unsqueeze(0).mm(w_input)
+                    attn_score[word_in_attn] = (f_input(attn_input[batch_attn, word_in_attn, :].unsqueeze(0))
                                                 .mm(main_input[batch_attn, time_attn, :].unsqueeze(0).t()))
                 # norm
-                attn_score = f.softmax(attn_score)
+                attn_score = f.softmax(attn_score, dim=0).to(device)
 
                 # get
                 for word_in_attn in range(attn_input.size(1)):
@@ -289,9 +237,42 @@ class MRU(nn.Module):
                                                                * attn_input[batch_attn, word_in_attn, :])
         return main_on_attn
 
-    def _concat(self, article_concat, options_concat):
-        new_article_concat = torch.zeros((article_concat.size(0), DIM))
-        new_options_concat = torch.zeros((article_concat.size(0), DIM))
+
+class BiAttention(nn.Module):
+    def __init__(self):
+        super(BiAttention, self).__init__()
+        self._f1_bi_attn = nn.Linear(DIM, DIM)
+        self._f2_bi_attn = nn.Linear(DIM, DIM)
+        self._f3_bi_attn = nn.Linear(DIM, DIM)
+
+        self._attn1 = Attention().to(device)
+        self._attn2 = Attention().to(device)
+        self._attn3 = Attention().to(device)
+
+    def forward(self, input1, input2, mode):
+        if mode == 0:
+            # input1是article, input2是question，只算article on question
+            article_on_question_attn = self._attn1(input1, input2, self._f1_bi_attn)
+            return article_on_question_attn
+
+        elif mode == 1:
+            # input1是article, input2是option, bi-attn
+            article_on_option_attn = self._attn2(input1, input2, self._f2_bi_attn)
+            option_on_article_attn = self._attn3(input1, input2, self._f3_bi_attn)
+            return article_on_option_attn, option_on_article_attn
+
+        else:
+            raise AttributeError("Wrong mode!")
+# End #
+
+
+class Concat(nn.Module):
+    def __init__(self):
+        super(Concat, self).__init__()
+
+    def forward(self, article_concat, options_concat):
+        new_article_concat = torch.zeros((article_concat.size(0), DIM)).to(device)
+        new_options_concat = torch.zeros((article_concat.size(0), DIM)).to(device)
 
         for batch in range(article_concat.size(0)):       # batch
 
@@ -301,21 +282,61 @@ class MRU(nn.Module):
             for word in range(options_concat.size(1)):      # 求每个word的和
                 new_options_concat[batch, :] += options_concat[batch, word, :]
 
-        final_concat = torch.cat((new_article_concat, new_options_concat), 1)
-        return final_concat
+        final_concat = torch.cat(((new_article_concat / article_concat.size(1)),
+                                  (new_options_concat / options_concat.size(1))), 1).to(device)
+        return final_concat.to(device)
 
-    def _answer_selection(self, answer_vector):
-        answer_selected = torch.zeros((answer_vector.size(1)))
-        answer_temp = torch.zeros((answer_vector.size(0)))
+
+class AnswerSelection(nn.Module):
+    def __init__(self):
+        super(AnswerSelection, self).__init__()
+        self._f1_answer_selection = nn.Linear((2 * DIM), int(DIM / 4))
+        self._f2_answer_selection = nn.Linear(int(DIM / 4), 1)
+
+    def forward(self, answer_vector):
+        answer_selected = torch.zeros((answer_vector.size(1), answer_vector.size(0))).to(device)
         for batch in range(answer_vector.size(1)):
             for option in range(answer_vector.size(0)):
-                answer_temp[option] = f.relu(answer_vector[option, batch, :].unsqueeze(0)
-                                             .mm(self._w1_answer_selection)) + self._b1_answer_selection
-                answer_temp[option] = f.softmax(answer_vector[option, batch, :].unsqueeze(0)
-                                                .mm(self._w2_answer_selection) + self._b2_answer_selection)
-            answer_selected[batch] = torch.argmax(f.softmax(answer_temp))
+                answer_selected[batch, option] = self._f2_answer_selection(
+                    f.relu(self._f1_answer_selection(answer_vector[option, batch, :].unsqueeze(0))))
 
-        return answer_selected
+        return answer_selected.to(device)
+
+
+class BiAttentionMRU(nn.Module):
+    def __init__(self):
+        super(BiAttentionMRU, self).__init__()
+        self.embedding = nn.Embedding(num_embeddings=len(ARTICLES.vocab), embedding_dim=DIM).to(device)
+        self._mru = MRUEncoding().to(device)
+        self._bi_attention = BiAttention().to(device)
+        self._concat = Concat().to(device)
+        self._answer_selection = AnswerSelection().to(device)
+
+    def forward(self, option1_in, option2_in, option3_in, option4_in, question_in, article_in):
+
+        # Input Encoding
+        article_in = self.embedding(article_in).to(device)
+        option1_in = self.embedding(option1_in).to(device)
+        option2_in = self.embedding(option2_in).to(device)
+        option3_in = self.embedding(option3_in).to(device)
+        option4_in = self.embedding(option4_in).to(device)
+        question_in = self.embedding(question_in).to(device)
+
+        # MRU Encoding
+        article_in = self._mru(article_in).to(device)
+
+        # Bi-Attention Layer
+        answer_pred = torch.zeros((4, BATCH_SIZE, (2 * DIM))).to(device)  # 最终的向量
+        article_on_question = self._bi_attention(article_in, question_in, mode=0)
+        for (option_in, num) in [(option1_in, 0), (option2_in, 1), (option3_in, 2), (option4_in, 3)]:
+            article_on_question_option, option_on_article = self._bi_attention(article_on_question, option_in, mode=1)
+            # Concat
+            answer_pred[torch.tensor(num).to(device), :, :] = self._concat(article_on_question_option, option_on_article)
+
+        # Answer Selection
+        answer_pred = self._answer_selection(answer_pred)
+
+        return answer_pred
 
 
 if __name__ == "__main__":
@@ -329,7 +350,6 @@ if __name__ == "__main__":
     # 数据集
     train = get_race(train_data=1)
     dev = get_race(train_data=0)
-    device = torch.device("cuda")  # GPU
 
     # 建立词表
     QUESTIONS.build_vocab(train)
@@ -339,12 +359,11 @@ if __name__ == "__main__":
 
     # 迭代器
     train_iter, dev_iter = data.BucketIterator.splits((train, dev), batch_size=BATCH_SIZE, shuffle=True,
-                                                      repeat=False, device=device)
+                                                      repeat=False, device=device, sort=False)
 
-    net = MRU()
-    net = net.to(device)
+    net = BiAttentionMRU().to(device)
 
-    criterion = nn.CrossEntropyLoss()
+    criterion = nn.CrossEntropyLoss().to(device)
     optimizer = optim.Adam(net.parameters(), lr=LEARNING_RATE)
 
     for epoch in range(EPOCH):
@@ -353,8 +372,8 @@ if __name__ == "__main__":
         # 遍历iter
         for i, data_iter in enumerate(train_iter):
 
-            # load to gpu
-            answer = data_iter.answers
+            # load
+            answer = data_iter.answers - 1
             option1 = data_iter.options1
             option2 = data_iter.options2
             option3 = data_iter.options3
@@ -364,22 +383,23 @@ if __name__ == "__main__":
 
             optimizer.zero_grad()                                                  # zero grad
             output = net(option1, option2, option3, option4, question, article)    # forward
-            loss = criterion(output, answer)                                       # loss
+            loss = criterion(output.to(device), answer.to(device))                                       # loss
             loss.backward()                                                        # back
             optimizer.step()                                                       # optimize
 
             # print loss
             running_loss += loss.item()
-            if i % 100 == 99:                                                      # print every 100 iter
+            if i % 1 == 0:                                                      # print every 100 iter
                 print("Epoch: %6d | ITER: %7d | LOSS: %.6f" % (epoch, i, running_loss))
                 running_loss = 0.0
+            break
 
     # predict
     correct = 0
     total = 0
     with torch.no_grad():
-        for data_iter in dev_iter:
-            answer = data_iter.answers
+        for _, data_iter in enumerate(dev_iter):
+            answer = data_iter.answers - 1
             option1 = data_iter.options1
             option2 = data_iter.options2
             option3 = data_iter.options3

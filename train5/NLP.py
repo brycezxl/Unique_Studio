@@ -110,6 +110,7 @@ if __name__ == '__main__':
     net = net.to(device)
 
     criterion = nn.CrossEntropyLoss()
+    a = net.parameters()
     optimizer = optim.Adam(net.parameters(), lr=LEARNING_RATE)
 
     for epoch in range(EPOCH):
