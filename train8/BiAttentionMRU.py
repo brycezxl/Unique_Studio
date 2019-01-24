@@ -1,15 +1,16 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as f
+import matplotlib.pyplot as plt
 import torch.optim as optim
 from torchtext import data
 import glob
 import re
 __all__ = torch
 
-BATCH_SIZE = 2
-EPOCH = 1
-LEARNING_RATE = 0.0003
+BATCH_SIZE = 8
+EPOCH = 3
+LEARNING_RATE = 0.003          # 0.0003
 DIM = 300
 device = torch.device("cuda")  # GPU
 
@@ -87,88 +88,70 @@ class ContractExpand(nn.Module):
     def __init__(self):
         super(ContractExpand, self).__init__()
         # MRU Encoder
-        self._r_mru_encoder = torch.tensor([1, 2, 4, 10, 25], requires_grad=False)
+        self._r_mru_encoder = torch.tensor([1, 2, 4, 10, 25])
         self._f1_mru = nn.Linear(DIM, DIM)
+        nn.init.xavier_normal_(self._f1_mru.weight)
         self._f2_mru = nn.Linear(DIM, DIM)
+        nn.init.xavier_normal_(self._f2_mru.weight)
         self._f3_mru = nn.Linear(DIM, DIM)
+        nn.init.xavier_normal_(self._f3_mru.weight)
         self._f4_mru = nn.Linear(DIM, DIM)
+        nn.init.xavier_normal_(self._f4_mru.weight)
         self._f5_mru = nn.Linear(DIM, DIM)
+        nn.init.xavier_normal_(self._f5_mru.weight)
 
     def forward(self, inputs_c_e):
-        new_inputs_c_e = 1
+        word_new = torch.zeros((5, inputs_c_e.size(0), inputs_c_e.size(1), inputs_c_e.size(2))).to(device)  # 新数组
+        for r, func, n in zip(self._r_mru_encoder,
+                              [self._f1_mru, self._f2_mru, self._f3_mru, self._f4_mru, self._f5_mru],
+                              range(5)):
+            r = r.to(device)                        # gpu
+            groups = int(inputs_c_e.size(1) / r)    # 整除组
+            rest = inputs_c_e.size(1) - r * groups  # 余数组
 
-        # contract-expand
-        for r, func in zip(self._r_mru_encoder, [self._f1_mru, self._f2_mru, self._f3_mru, self._f4_mru, self._f5_mru]):
-
-            # gpu
-            r = r.to(device)
-
-            # contract
-            groups = int(inputs_c_e.size(0) / r)  # 整除组
-            rest = inputs_c_e.size(0) - r * groups  # 余数组
-            word_temp = torch.zeros(((groups + int(rest != 0)), DIM)).to(device)  # 临时储存压缩数组
-            word_new = torch.zeros_like(inputs_c_e).to(device)  # 展开后的新数组
-
-            # 整除组contract + 处理
+            # 整除组contract + expand
             for group in range(groups):
-                sum_group = 0  # 求出r组词的和
+                sum_group1 = 0  # 求出r组词的和
                 for p in range((r * group), (r * (group + 1))):
-                    sum_group += inputs_c_e[p, :]
-                sum_group = sum_group.unsqueeze(0).to(device)
-                word_temp[group, :] = f.relu(func(sum_group))  # 对r组词的和操作一番
-            # 余数组contract + 处理
+                    sum_group1 += inputs_c_e[:, p, :].unsqueeze(1)
+                for p in range((r * group), (r * (group + 1))):
+                    word_new[n, :, p, :] = f.relu(func(sum_group1.squeeze().to(device))) / r   # 对r组词的和操作一番
+
+            # 余数组contract + expand
             if rest != 0:
-                sum_group = 0
+                sum_group2 = 0
                 for p in range((r * groups), (r * groups + rest)):
-                    sum_group += inputs_c_e[p, :]
-                sum_group = sum_group.unsqueeze(0).to(device)
-                word_temp[groups, :] = f.relu(func(sum_group * r / rest))
-
-            # 整除组expand
-            for group in range(groups):
-                for num in range(r):
-                    word_new[(r * group + num), :] = word_temp[group, :] / r
-            # 余数组expand
-            if rest != 0:
-                for num in range(rest):
-                    word_new[(r * groups + num), :] = word_temp[groups, :] / r
-
-            # 处理完成并入大数组
-            if isinstance(new_inputs_c_e, int):
-                new_inputs_c_e = word_new.to(device)
-            else:
-                new_inputs_c_e = torch.cat((new_inputs_c_e, word_new), 0).to(device)
-
-        return new_inputs_c_e
+                    sum_group2 += inputs_c_e[:, p, :].unsqueeze(1)
+                for p in range((r * groups), (r * groups + rest)):
+                    word_new[n, :, p, :] = f.relu(func(sum_group2.to(device) * r / rest)).squeeze() / r
+        return word_new
 
 
 class MultiRangedReasoning(nn.Module):
     def __init__(self):
         super(MultiRangedReasoning, self).__init__()
         self._1_mru_contract_expand = nn.Linear(5, 3)
+        nn.init.xavier_normal_(self._1_mru_contract_expand.weight)
         self._2_mru_contract_expand = nn.Linear(3, 1)
+        nn.init.xavier_normal_(self._2_mru_contract_expand.weight)
         self._mru_contract_expand = ContractExpand().to(device)
 
     def forward(self, inputs_reasoning):
-        outputs_reasoning = torch.zeros_like(inputs_reasoning).to(device)
 
-        # every batch
-        for batch in range(inputs_reasoning.size(0)):
+        outputs_reasoning = torch.zeros_like(inputs_reasoning).to(device)      # 初始化输出
+        new_inputs = self._mru_contract_expand(inputs_reasoning).to(device)    # contract-expand后
 
-            new_inputs = self._mru_contract_expand(inputs_reasoning[batch, :, :]).to(device)
-
-            # 合并后过两层神经网络
-            for word in range(int(new_inputs.size(0) / 5)):  # 每个词
-                word_pre = 0
-                for r1 in range(5):  # 把一个词的r个表示串联
-                    if isinstance(word_pre, int):
-                        word_pre = new_inputs[(int(r1 * inputs_reasoning[batch, :, :].size(0)) + word), :].unsqueeze(0).to(device)
-                    else:
-                        word_pre = torch.cat((word_pre,
-                                              new_inputs[(int(r1 * inputs_reasoning[batch, :, :].size(0)) + word), :].unsqueeze(0)), 0).to(device)
-
-                word_pre = f.relu(self._1_mru_contract_expand(word_pre.t())).t()
-                outputs_reasoning[batch, word, :] = f.relu(self._2_mru_contract_expand(word_pre.t())).t()
+        # 合并后过两层神经网络
+        for word in range(new_inputs.size(2)):                        # 每个词
+            word_pre = 0
+            for r1 in range(5):                                                # 把一个词的r个表示串联
+                if isinstance(word_pre, int):
+                    word_pre = new_inputs[r1, :, word, :].unsqueeze(1).to(device)
+                else:
+                    word_pre = torch.cat((word_pre, new_inputs[r1, :, word, :].unsqueeze(1)), 1).to(device)
+            for batch in range(inputs_reasoning.size(0)):      # 分batch把串联表示过2层fc，合并
+                outputs_reasoning[batch, word, :] = f.relu(self._2_mru_contract_expand(
+                    f.relu(self._1_mru_contract_expand(word_pre[batch, :, :].t())).t().t())).t()
 
         return outputs_reasoning.to(device)
 
@@ -177,22 +160,19 @@ class Encoding(nn.Module):
     def __init__(self):
         super(Encoding, self).__init__()
         self._fz_mru = nn.Linear(DIM, DIM)
+        nn.init.kaiming_normal_(self._fz_mru.weight)
         self._fo_mru = nn.Linear(DIM, DIM)
+        nn.init.kaiming_normal_(self._fo_mru.weight)
 
     def forward(self, gate_encoding, inputs_encoding):
-        outputs_encoding = torch.zeros_like(inputs_encoding).to(device)
-
-        for batch in range(inputs_encoding.size(0)):  # 每个batch
-            temp_inputs_encoding = inputs_encoding[batch, :, :].squeeze().to(device)
-            temp_gate_encoding = gate_encoding[batch, :, :].squeeze().to(device)
-            c = 0  # cell
-            for time in range(inputs_encoding.size(1)):  # 每个时间点
-                z = torch.tanh(self._fz_mru(temp_inputs_encoding[time, :].unsqueeze(0))).to(device)  # pre
-                c = temp_gate_encoding[time, :] * c + (1 - temp_gate_encoding[time, :]).to(device) * z  # cell
-                o = torch.tanh(self._fo_mru(temp_inputs_encoding[time, :].unsqueeze(0))).to(device)  # output gate
-                h = o * c  # hidden state + output
-                outputs_encoding[batch, time, :] = h.to(device)
-
+        outputs_encoding = torch.zeros_like(inputs_encoding).to(device)     # 初始化输出
+        c = 0                                                               # 初始化cell
+        for time in range(inputs_encoding.size(1)):                         # 每个时间点
+            z = torch.tanh(self._fz_mru(inputs_encoding[:, time, :])).to(device)                    # input gate
+            c = gate_encoding[:, time, :] * c + (1 - gate_encoding[:, time, :]).to(device) * z      # cell
+            o = torch.tanh(self._fo_mru(inputs_encoding[:, time, :])).to(device)                    # output gate
+            h = o * c           # hidden state + output
+            outputs_encoding[:, time, :] = h.to(device)
         return outputs_encoding
 
 
@@ -206,10 +186,10 @@ class MRUEncoding(nn.Module):
         gate_mru = self._mru_multi_ranged_reasoning(inputs_mru).to(device)
         outputs_mru = self._mru_encoding(gate_mru, inputs_mru).to(device)
         return outputs_mru.to(device)
-# End #
+# End
 
 
-# Attention #
+# Attention
 class Attention(nn.Module):
     def __init__(self):
         super(Attention, self).__init__()
@@ -218,23 +198,18 @@ class Attention(nn.Module):
 
         main_on_attn = torch.zeros_like(main_input).to(device)
 
-        for batch_attn in range(main_input.size(0)):       # 每一个batch
+        for time_attn in range(main_input.size(1)):     # 每一个时间点（main input 的每个单词）
+            attn_score = torch.zeros((attn_input.size(0), attn_input.size(1))).to(device)       # score
 
-            for time_attn in range(main_input.size(1)):     # 每一个时间点（main input 的每个单词）
-
-                # score
-                attn_score = torch.zeros((attn_input.size(1))).to(device)
-
+            for batch in range(main_input.size(0)):                # 必须循环每一个batch才能获得1×1的score
                 for word_in_attn in range(attn_input.size(1)):     # 给每一个attn input的单词打分
-                    attn_score[word_in_attn] = (f_input(attn_input[batch_attn, word_in_attn, :].unsqueeze(0))
-                                                .mm(main_input[batch_attn, time_attn, :].unsqueeze(0).t()))
-                # norm
-                attn_score = f.softmax(attn_score, dim=0).to(device)
+                    attn_score[batch, word_in_attn] = (f_input(attn_input[batch, word_in_attn, :].unsqueeze(0))
+                                                       .mm(main_input[batch, time_attn, :].unsqueeze(0).t()))
+            attn_score = f.softmax(attn_score, dim=1).to(device)   # softmax
 
-                # get
-                for word_in_attn in range(attn_input.size(1)):
-                    main_on_attn[batch_attn, time_attn, :] += (attn_score[word_in_attn]
-                                                               * attn_input[batch_attn, word_in_attn, :])
+            for batch in range(main_input.size(0)):
+                for word_in_attn in range(attn_input.size(1)):         # score * context
+                    main_on_attn[batch, time_attn, :] += (attn_score[batch, word_in_attn] * attn_input[batch, word_in_attn, :])
         return main_on_attn
 
 
@@ -242,8 +217,11 @@ class BiAttention(nn.Module):
     def __init__(self):
         super(BiAttention, self).__init__()
         self._f1_bi_attn = nn.Linear(DIM, DIM)
+        nn.init.kaiming_normal_(self._f1_bi_attn.weight)
         self._f2_bi_attn = nn.Linear(DIM, DIM)
+        nn.init.kaiming_normal_(self._f2_bi_attn.weight)
         self._f3_bi_attn = nn.Linear(DIM, DIM)
+        nn.init.kaiming_normal_(self._f3_bi_attn.weight)
 
         self._attn1 = Attention().to(device)
         self._attn2 = Attention().to(device)
@@ -263,7 +241,7 @@ class BiAttention(nn.Module):
 
         else:
             raise AttributeError("Wrong mode!")
-# End #
+# End
 
 
 class Concat(nn.Module):
@@ -274,13 +252,11 @@ class Concat(nn.Module):
         new_article_concat = torch.zeros((article_concat.size(0), DIM)).to(device)
         new_options_concat = torch.zeros((article_concat.size(0), DIM)).to(device)
 
-        for batch in range(article_concat.size(0)):       # batch
+        for word in range(article_concat.size(1)):      # 求每个文章word的和
+            new_article_concat += article_concat[:, word, :]
 
-            for word in range(article_concat.size(1)):    # 求每个word的和
-                new_article_concat[batch, :] += article_concat[batch, word, :]
-
-            for word in range(options_concat.size(1)):      # 求每个word的和
-                new_options_concat[batch, :] += options_concat[batch, word, :]
+        for word in range(options_concat.size(1)):      # 求每个选项word的和
+            new_options_concat += options_concat[:, word, :]
 
         final_concat = torch.cat(((new_article_concat / article_concat.size(1)),
                                   (new_options_concat / options_concat.size(1))), 1).to(device)
@@ -295,12 +271,11 @@ class AnswerSelection(nn.Module):
 
     def forward(self, answer_vector):
         answer_selected = torch.zeros((answer_vector.size(1), answer_vector.size(0))).to(device)
-        for batch in range(answer_vector.size(1)):
-            for option in range(answer_vector.size(0)):
-                answer_selected[batch, option] = self._f2_answer_selection(
-                    f.relu(self._f1_answer_selection(answer_vector[option, batch, :].unsqueeze(0))))
+        for option in range(answer_vector.size(0)):
+            answer_selected[:, option] = self._f2_answer_selection(
+                f.relu(self._f1_answer_selection(answer_vector[option, :, :]))).squeeze()
 
-        return answer_selected.to(device)
+        return answer_selected
 
 
 class BiAttentionMRU(nn.Module):
@@ -331,7 +306,7 @@ class BiAttentionMRU(nn.Module):
         for (option_in, num) in [(option1_in, 0), (option2_in, 1), (option3_in, 2), (option4_in, 3)]:
             article_on_question_option, option_on_article = self._bi_attention(article_on_question, option_in, mode=1)
             # Concat
-            answer_pred[torch.tensor(num).to(device), :, :] = self._concat(article_on_question_option, option_on_article)
+            answer_pred[num, :, :] = self._concat(article_on_question_option, option_on_article)
 
         # Answer Selection
         answer_pred = self._answer_selection(answer_pred)
@@ -342,9 +317,9 @@ class BiAttentionMRU(nn.Module):
 if __name__ == "__main__":
 
     # 列出Field
-    QUESTIONS = data.Field(batch_first=True)
-    OPTIONS = data.Field(batch_first=True)
-    ARTICLES = data.Field(batch_first=True)
+    QUESTIONS = data.Field(batch_first=True, fix_length=16)
+    OPTIONS = data.Field(batch_first=True, fix_length=16)
+    ARTICLES = data.Field(batch_first=True, pad_first=True)
     ANSWERS = data.Field(sequential=False)
 
     # 数据集
@@ -359,12 +334,13 @@ if __name__ == "__main__":
 
     # 迭代器
     train_iter, dev_iter = data.BucketIterator.splits((train, dev), batch_size=BATCH_SIZE, shuffle=True,
-                                                      repeat=False, device=device, sort=False)
-
+                                                      repeat=False, device=device, sort=True,
+                                                      sort_key=lambda x: len(x.articles))
     net = BiAttentionMRU().to(device)
 
     criterion = nn.CrossEntropyLoss().to(device)
     optimizer = optim.Adam(net.parameters(), lr=LEARNING_RATE)
+    j_list = []
 
     for epoch in range(EPOCH):
         running_loss = 0
@@ -383,16 +359,22 @@ if __name__ == "__main__":
 
             optimizer.zero_grad()                                                  # zero grad
             output = net(option1, option2, option3, option4, question, article)    # forward
-            loss = criterion(output.to(device), answer.to(device))                                       # loss
+            loss = criterion(output, answer)                                       # loss
+            if not loss < 10:               # 控制梯度爆炸
+                print("Abandoned epoch!")
+                continue
             loss.backward()                                                        # back
             optimizer.step()                                                       # optimize
 
             # print loss
             running_loss += loss.item()
-            if i % 1 == 0:                                                      # print every 100 iter
-                print("Epoch: %6d | ITER: %7d | LOSS: %.6f" % (epoch, i, running_loss))
-                running_loss = 0.0
-            break
+            # if i % 2 == 1:                                                      # print every 100 iter
+            print("Epoch: %6d %4d%% | ITER: %7d | LOSS: %.6f" % (epoch, (epoch / EPOCH * 100), (i + 1), running_loss))
+            j_list.append(running_loss)
+            running_loss = 0.0
+
+    plt.plot(range(len(j_list)), j_list, c="r")
+    plt.show()
 
     # predict
     correct = 0
@@ -411,5 +393,7 @@ if __name__ == "__main__":
             _, predicted = torch.max(outputs.data, 1)
             total += answer.size(0)
             correct += (predicted == answer).sum().item()
+            if total > 100:
+                break
 
     print('Accuracy: %d %%' % (100 * correct / total))
