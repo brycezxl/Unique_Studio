@@ -14,3 +14,4 @@ cifar-10-batches-py
 imdb
 RACE
 *.pth
+VOCdevkit
