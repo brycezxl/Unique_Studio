@@ -30,7 +30,7 @@ class SSD(nn.Module):
 
         for o, l, c in zip(output, self.loc, self.conf):
             # permute重新排列维度顺序, PyTorch维度的默认排列顺序为 (N, C, H, W)
-            # 因此, 这里的排列是将其改为 $(N, H, W, C)$
+            # 这里的排列是将其改为 $(N, H, W, C)$
             # contiguous返回内存连续的tensor, 由于在执行permute或者transpose等操作之后, tensor的内存地址可能不是连续的
             # 然后 view 操作是基于连续地址的, 因此, 需要调用contiguous语句
             loc.append(l(x).permute(0, 2, 3, 1).contiguous())
