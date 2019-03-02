@@ -321,7 +321,7 @@ if __name__ == "__main__":
     OPTIONS = data.Field(batch_first=True, fix_length=16)
     ARTICLES = data.Field(batch_first=True, pad_first=True)
     ANSWERS = data.Field(sequential=False)
-
+、
     # 数据集
     train = get_race(train_data=1)
     dev = get_race(train_data=0)

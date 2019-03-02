@@ -8,10 +8,10 @@ from ..box_utils import match, log_sum_exp
 
 class MultiBoxLoss(nn.Module):
     """
-    # 计算目标:
-    # 1.输出那些与真实框的iou大于一定阈值的框的下标
-    # 2.根据与真实框的偏移量输出localization目标,计算loc损失
-    # 3.用难样例挖掘算法去除大量负样本(默认正负样本比例为1:3),计算包括正样本和负样本的置信度损失
+    计算目标:
+    1.输出那些与真实框的iou大于一定阈值的框的下标
+    2.根据与真实框的偏移量输出localization目标,计算loc损失
+    3.用难样例挖掘算法去除大量负样本(默认正负样本比例为1:3),计算包括正样本和负样本的置信度损失
     :param:
         L(x,c,l,g) = [L_conf(x,c), L_loc(x,l,g)] / N
         x: {1,0}
@@ -84,9 +84,7 @@ class MultiBoxLoss(nn.Module):
         _, loss_idx = loss_c.sort(1, descending=True)
         # 将下标进行升序排序, 并获取到下标的下标   相当于反向降序排序 序号递增 每个序号对应刚刚的排名 代表第几名回哪里去
         _, idx_rank = loss_idx.sort(1)
-        # num_pos: [batch, 1], 统计每个样本中的obj个数
-        num_pos = pos.long().sum(1, keepdim=True)
-        # 根据obj的个数, 确定负样本的个数(正样本的3倍)
+        # 根据pos的个数, 确定负样本的个数(正样本的3倍)
         num_neg = torch.clamp(self.negpos_ratio * num_pos, max=pos.size(1) - 1)
         # 获取到负样本的下标 形式为【0，1,0,1,1,0】
         neg = idx_rank < num_neg.expand_as(idx_rank)
